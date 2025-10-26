@@ -45,6 +45,11 @@ curl -X POST http://localhost:3000/api/crawl \
 curl -X POST http://localhost:3000/api/crawl \
   -H "Content-Type: application/json" \
   -d '{"minYear": 2020, "limit": 100}'
+
+# Crawl new competitions only (skip already crawled ones)
+curl -X POST http://localhost:3000/api/crawl \
+  -H "Content-Type: application/json" \
+  -d '{"minYear": 2024, "limit": 50, "skipExisting": true}'
 ```
 
 **Note:** Recent competitions (2020+) are much more likely to have video/technique data. Use `minYear` to filter to modern competitions first. Start with `{"minYear": 2025, "limit": 10}` for testing.

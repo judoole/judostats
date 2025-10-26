@@ -7,7 +7,7 @@ const client = new IJFClient();
 
 export async function POST(request: Request) {
   try {
-    const { limit, minYear } = await request.json().catch(() => ({}));
+    const { limit, minYear, skipExisting } = await request.json().catch(() => ({}));
 
     await storage.load();
 
@@ -22,6 +22,17 @@ export async function POST(request: Request) {
         return year >= minYear;
       });
       console.log(`Filtered to ${filtered.length} competitions from ${minYear} onwards`);
+    }
+    
+    // Filter out already crawled competitions if skipExisting is true
+    if (skipExisting) {
+      const existingCompetitionIds = new Set(storage.getAllCompetitions().map(c => c.id));
+      const beforeSkip = filtered.length;
+      filtered = filtered.filter((comp: any) => {
+        const compId = parseInt(comp.id_competition || comp.id);
+        return !existingCompetitionIds.has(compId);
+      });
+      console.log(`Skipping ${beforeSkip - filtered.length} already crawled competitions`);
     }
     
     const limited = limit ? filtered.slice(0, limit) : filtered;
