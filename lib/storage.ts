@@ -91,8 +91,9 @@ export class JsonStorage {
   async save() {
     await ensureDataDir();
 
-    await fs.writeFile(this.competitionsPath, JSON.stringify(this.competitions, null, 2));
-    await fs.writeFile(this.techniquesPath, JSON.stringify(this.techniques, null, 2));
+    // Use compact JSON (no pretty printing) to reduce file size
+    await fs.writeFile(this.competitionsPath, JSON.stringify(this.competitions));
+    await fs.writeFile(this.techniquesPath, JSON.stringify(this.techniques));
   }
 
   getAllCompetitions(): StoredCompetition[] {
