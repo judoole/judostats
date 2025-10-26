@@ -20,22 +20,22 @@ function ExpandableTechniqueList({
   const hasMore = techniques.length > displayCount;
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow">
-      <h2 className="text-xl font-bold mb-4">{title}</h2>
+    <div className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow border border-gray-100">
+      <h2 className="text-xl font-bold mb-4 text-gray-800">{title}</h2>
       <div className="space-y-2">
         {visibleTechniques.map((tech, i) => (
-          <div key={i} className="flex justify-between items-center">
-            <span className={colorClass || ''}>{tech.name}</span>
-            <span className="font-semibold">{tech.count}x</span>
+          <div key={i} className="flex justify-between items-center py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors">
+            <span className={`font-medium ${colorClass || 'text-gray-700'}`}>{tech.name}</span>
+            <span className="font-bold text-lg text-gray-800">{tech.count}x</span>
           </div>
         ))}
       </div>
       {hasMore && (
         <button
           onClick={() => setShowAll(!showAll)}
-          className="mt-4 text-blue-600 hover:text-blue-800 font-semibold"
+          className="mt-4 w-full py-2 px-4 text-blue-600 hover:text-blue-800 hover:bg-blue-50 font-semibold rounded-lg transition-colors"
         >
-          {showAll ? 'Show Less' : `Show All (${techniques.length})`}
+          {showAll ? '↑ Show Less' : `↓ Show All (${techniques.length})`}
         </button>
       )}
     </div>
@@ -221,13 +221,15 @@ export default function Dashboard() {
 
 function StatCard({ title, value, icon }: { title: string; value: number; icon: string }) {
   return (
-    <div className="bg-white p-6 rounded-lg shadow">
+    <div className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow border border-gray-100">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-gray-600 text-sm">{title}</p>
-          <p className="text-3xl font-bold mt-2">{value}</p>
+          <p className="text-gray-600 text-sm font-medium mb-1">{title}</p>
+          <p className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+            {value.toLocaleString()}
+          </p>
         </div>
-        <div className="text-4xl">{icon}</div>
+        <div className="text-5xl opacity-20">{icon}</div>
       </div>
     </div>
   );

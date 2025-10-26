@@ -19,24 +19,24 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} antialiased bg-gray-50`}>
-        <nav className="bg-white shadow-lg">
+        <nav className="bg-gradient-to-r from-blue-700 to-blue-800 shadow-lg">
           <div className="container mx-auto px-4">
             <div className="flex justify-between h-16">
               <div className="flex items-center">
-                <Link href="/" className="text-2xl font-bold text-blue-600">
-                  Judo Top Waza
+                <Link href="/" className="text-2xl font-bold text-white hover:text-gray-200 transition-colors">
+                  🥋 Judo Stats
                 </Link>
               </div>
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-1">
                 <Link
                   href="/"
-                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+                  className="text-gray-200 hover:text-white hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                 >
                   Dashboard
                 </Link>
                 <Link
                   href="/techniques"
-                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+                  className="text-gray-200 hover:text-white hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                 >
                   Techniques
                 </Link>
