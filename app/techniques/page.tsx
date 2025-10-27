@@ -165,6 +165,7 @@ export default function TechniquesPage() {
   const [selectedGender, setSelectedGender] = useState<string>('');
   const [selectedWeightClass, setSelectedWeightClass] = useState<string>('');
   const [selectedEventType, setSelectedEventType] = useState<string>('');
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const { data: competitions } = useQuery({
@@ -178,9 +179,10 @@ export default function TechniquesPage() {
   if (selectedGender) filterParams.append('gender', selectedGender);
   if (selectedWeightClass) filterParams.append('weightClass', selectedWeightClass);
   if (selectedEventType) filterParams.append('eventType', selectedEventType);
+  if (selectedYear) filterParams.append('year', selectedYear.toString());
   
   const { data: response, isLoading } = useQuery({
-    queryKey: ['techniqueStats', selectedCompetition, selectedGender, selectedWeightClass, selectedEventType],
+    queryKey: ['techniqueStats', selectedCompetition, selectedGender, selectedWeightClass, selectedEventType, selectedYear],
     queryFn: async () => {
       const { data } = await axios.get(`/api/technique-stats?${filterParams.toString()}`);
       return data;
@@ -189,7 +191,7 @@ export default function TechniquesPage() {
   });
 
   const techniques = response?.stats || [];
-  const availableFilters = response?.availableFilters || { genders: [], weightClasses: [], eventTypes: [] };
+  const availableFilters = response?.availableFilters || { genders: [], weightClasses: [], eventTypes: [], years: [] };
 
   // Filter techniques based on search term
   let aggregatedTechniques: AggregatedTechnique[] = [];
@@ -284,6 +286,18 @@ export default function TechniquesPage() {
             {availableFilters.eventTypes.map((et) => (
               <option key={et} value={et}>
                 {et}
+              </option>
+            ))}
+          </select>
+          <select
+            value={selectedYear?.toString() || ''}
+            onChange={(e) => setSelectedYear(e.target.value ? parseInt(e.target.value) : null)}
+            className="px-4 py-2 border rounded-lg"
+          >
+            <option value="">All Years</option>
+            {availableFilters.years.map((year) => (
+              <option key={year} value={year.toString()}>
+                {year}
               </option>
             ))}
           </select>

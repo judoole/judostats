@@ -176,7 +176,7 @@ export class JsonStorage {
     return result;
   }
 
-  getStats(filters?: { gender?: string; weightClass?: string; eventType?: string; competitionId?: number }) {
+  getStats(filters?: { gender?: string; weightClass?: string; eventType?: string; competitionId?: number; year?: number }) {
     // Filter techniques based on provided filters
     let filteredTechniques = this.techniques;
     
@@ -193,12 +193,28 @@ export class JsonStorage {
       if (filters.competitionId) {
         filteredTechniques = filteredTechniques.filter(t => t.competitionId === filters.competitionId);
       }
+      if (filters.year) {
+        // Look up year from competitions based on competitionId
+        const competitionYearMap = new Map<number, number>();
+        this.competitions.forEach(c => {
+          if (c.year) {
+            competitionYearMap.set(c.id, c.year);
+          }
+        });
+        filteredTechniques = filteredTechniques.filter(t => {
+          const compYear = competitionYearMap.get(t.competitionId);
+          return compYear === filters.year;
+        });
+      }
     }
 
-    // Filter competitions if competitionId filter is specified
+    // Filter competitions if competitionId or year filter is specified
     let filteredCompetitions = this.competitions;
     if (filters?.competitionId) {
       filteredCompetitions = filteredCompetitions.filter(c => c.id === filters.competitionId);
+    }
+    if (filters?.year) {
+      filteredCompetitions = filteredCompetitions.filter(c => c.year === filters.year);
     }
 
     const totalTechniques = filteredTechniques.length;
@@ -290,7 +306,7 @@ export class JsonStorage {
     };
   }
 
-  getTechniqueStats(filters?: { gender?: string; weightClass?: string; eventType?: string; competitionId?: number }) {
+  getTechniqueStats(filters?: { gender?: string; weightClass?: string; eventType?: string; competitionId?: number; year?: number }) {
     // Filter techniques based on provided filters
     let filteredTechniques = this.techniques;
     
@@ -306,6 +322,19 @@ export class JsonStorage {
       }
       if (filters.competitionId) {
         filteredTechniques = filteredTechniques.filter(t => t.competitionId === filters.competitionId);
+      }
+      if (filters.year) {
+        // Look up year from competitions based on competitionId
+        const competitionYearMap = new Map<number, number>();
+        this.competitions.forEach(c => {
+          if (c.year) {
+            competitionYearMap.set(c.id, c.year);
+          }
+        });
+        filteredTechniques = filteredTechniques.filter(t => {
+          const compYear = competitionYearMap.get(t.competitionId);
+          return compYear === filters.year;
+        });
       }
     }
     
@@ -341,11 +370,13 @@ export class JsonStorage {
     const genders = new Set(this.techniques.map(t => t.gender).filter(Boolean));
     const weightClasses = new Set(this.techniques.map(t => t.weightClass).filter(Boolean));
     const eventTypes = new Set(this.techniques.map(t => t.eventType).filter(Boolean));
+    const years = new Set(this.competitions.map(c => c.year).filter(Boolean)).sort((a, b) => (b || 0) - (a || 0));
     
     return {
       genders: Array.from(genders) as string[],
       weightClasses: Array.from(weightClasses) as string[],
       eventTypes: Array.from(eventTypes) as string[],
+      years: Array.from(years) as number[],
     };
   }
 
