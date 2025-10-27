@@ -167,13 +167,13 @@ export default function Dashboard() {
             ))}
           </select>
           <select
-            value={selectedYear?.toString() || ''}
+            value={selectedYear ? String(selectedYear) : ''}
             onChange={(e) => setSelectedYear(e.target.value ? parseInt(e.target.value) : null)}
             className="px-4 py-2 border rounded-lg"
           >
             <option value="">All Years</option>
-            {availableFilters.years.map((year) => (
-              <option key={year} value={year.toString()}>
+            {(availableFilters.years || []).map((year) => (
+              <option key={year} value={String(year)}>
                 {year}
               </option>
             ))}
