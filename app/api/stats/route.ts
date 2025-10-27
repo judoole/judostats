@@ -14,6 +14,7 @@ export async function GET(request: Request) {
       weightClass: searchParams.get('weightClass') || undefined,
       eventType: searchParams.get('eventType') || undefined,
       competitionId: searchParams.get('competitionId') ? parseInt(searchParams.get('competitionId')!) : undefined,
+      year: searchParams.get('year') ? parseInt(searchParams.get('year')!) : undefined,
     };
     
     const stats = storage.getStats(filters);
