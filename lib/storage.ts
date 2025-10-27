@@ -372,13 +372,13 @@ export class JsonStorage {
     const genders = new Set(this.techniques.map(t => t.gender).filter(Boolean));
     const weightClasses = new Set(this.techniques.map(t => t.weightClass).filter(Boolean));
     const eventTypes = new Set(this.techniques.map(t => t.eventType).filter(Boolean));
-    const years = new Set(this.competitions.map(c => c.year).filter(Boolean)).sort((a, b) => (b || 0) - (a || 0));
+    const years = Array.from(new Set(this.competitions.map(c => c.year).filter(Boolean))).sort((a, b) => (b || 0) - (a || 0));
     
     return {
       genders: Array.from(genders) as string[],
       weightClasses: Array.from(weightClasses) as string[],
       eventTypes: Array.from(eventTypes) as string[],
-      years: Array.from(years) as number[],
+      years: years as number[],
     };
   }
 
