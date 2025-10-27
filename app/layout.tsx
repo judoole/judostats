@@ -40,6 +40,12 @@ export default function RootLayout({
                 >
                   Techniques
                 </Link>
+                <Link
+                  href="/judoka"
+                  className="text-gray-200 hover:text-white hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Judoka
+                </Link>
               </div>
             </div>
           </div>

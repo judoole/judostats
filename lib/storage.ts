@@ -349,6 +349,103 @@ export class JsonStorage {
     };
   }
 
+  getJudokaList(searchTerm?: string) {
+    // Get unique judoka names
+    const judokaMap = new Map<string, { id: string; name: string; totalTechniques: number }>();
+    
+    this.techniques.forEach(t => {
+      const id = t.competitor_id || t.competitorId || '';
+      const name = t.competitor_name || t.competitorName || 'Unknown';
+      
+      if (id && name !== 'Unknown') {
+        if (!judokaMap.has(id)) {
+          judokaMap.set(id, { id, name, totalTechniques: 0 });
+        }
+        judokaMap.get(id)!.totalTechniques++;
+      }
+    });
+    
+    let judokaList = Array.from(judokaMap.values());
+    
+    // Filter by search term if provided
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      judokaList = judokaList.filter(j => j.name.toLowerCase().includes(search));
+    }
+    
+    // Sort by total techniques (descending)
+    return judokaList.sort((a, b) => b.totalTechniques - a.totalTechniques);
+  }
+
+  getJudokaStats(judokaId: string, filters?: { gender?: string; weightClass?: string; eventType?: string; competitionId?: number }) {
+    // Filter techniques for this judoka
+    let filteredTechniques = this.techniques.filter(t => {
+      const id = t.competitor_id || t.competitorId || '';
+      return id === judokaId;
+    });
+    
+    if (filters) {
+      if (filters.gender) {
+        filteredTechniques = filteredTechniques.filter(t => (t.gender || '').toLowerCase() === filters.gender?.toLowerCase());
+      }
+      if (filters.weightClass) {
+        filteredTechniques = filteredTechniques.filter(t => (t.weightClass || '') === filters.weightClass);
+      }
+      if (filters.eventType) {
+        filteredTechniques = filteredTechniques.filter(t => (t.eventType || '').toLowerCase() === filters.eventType?.toLowerCase());
+      }
+      if (filters.competitionId) {
+        filteredTechniques = filteredTechniques.filter(t => t.competitionId === filters.competitionId);
+      }
+    }
+    
+    if (filteredTechniques.length === 0) {
+      return null;
+    }
+    
+    const name = filteredTechniques[0].competitor_name || filteredTechniques[0].competitorName || 'Unknown';
+    const totalTechniques = filteredTechniques.length;
+    
+    // Aggregate waza statistics
+    const wazaStats: Record<string, { count: number; totalScore: number; ippon: number; wazaAri: number; yuko: number }> = {};
+    
+    filteredTechniques.forEach(tech => {
+      const wazaName = tech.techniqueName || tech.technique_name || 'Unknown';
+      const scoreGroup = tech.score_group || tech.scoreGroup || 'Unknown';
+      const score = tech.score || 0;
+      
+      if (!wazaStats[wazaName]) {
+        wazaStats[wazaName] = { count: 0, totalScore: 0, ippon: 0, wazaAri: 0, yuko: 0 };
+      }
+      
+      wazaStats[wazaName].count++;
+      wazaStats[wazaName].totalScore += score;
+      
+      if (scoreGroup === 'Ippon') wazaStats[wazaName].ippon++;
+      else if (scoreGroup === 'Waza-ari') wazaStats[wazaName].wazaAri++;
+      else if (scoreGroup === 'Yuko') wazaStats[wazaName].yuko++;
+    });
+    
+    const wazaBreakdown = Object.entries(wazaStats)
+      .map(([name, data]) => ({
+        name,
+        count: data.count,
+        percentage: (data.count / totalTechniques * 100).toFixed(1),
+        avgScore: data.totalScore / data.count,
+        ippon: data.ippon,
+        wazaAri: data.wazaAri,
+        yuko: data.yuko,
+      }))
+      .sort((a, b) => b.count - a.count);
+    
+    return {
+      id: judokaId,
+      name,
+      totalTechniques,
+      wazaBreakdown,
+    };
+  }
+
   getMatchesForTechnique(techniqueName: string, filters?: { gender?: string; weightClass?: string; eventType?: string; competitionId?: number }) {
     let filteredTechniques = this.techniques.filter(t => {
       const name = t.techniqueName || t.technique_name || 'Unknown';
