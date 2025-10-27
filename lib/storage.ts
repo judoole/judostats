@@ -197,11 +197,12 @@ export class JsonStorage {
         // Look up year from competitions based on competitionId
         const competitionYearMap = new Map<number, number>();
         this.competitions.forEach(c => {
-          if (c.year) {
+          if (c.year && c.id) {
             competitionYearMap.set(c.id, c.year);
           }
         });
         filteredTechniques = filteredTechniques.filter(t => {
+          if (!t.competitionId) return false;
           const compYear = competitionYearMap.get(t.competitionId);
           return compYear === filters.year;
         });
@@ -327,11 +328,12 @@ export class JsonStorage {
         // Look up year from competitions based on competitionId
         const competitionYearMap = new Map<number, number>();
         this.competitions.forEach(c => {
-          if (c.year) {
+          if (c.year && c.id) {
             competitionYearMap.set(c.id, c.year);
           }
         });
         filteredTechniques = filteredTechniques.filter(t => {
+          if (!t.competitionId) return false;
           const compYear = competitionYearMap.get(t.competitionId);
           return compYear === filters.year;
         });
