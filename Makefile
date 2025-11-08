@@ -115,3 +115,7 @@ setup: install
 # Full restart: kill, clean, install, dev
 restart: kill clean install dev
 
+# Deploy to Vercel
+deploy:
+	@bash scripts/deploy.sh
+

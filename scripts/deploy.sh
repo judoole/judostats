@@ -32,6 +32,8 @@ echo "📦 Deploying to Vercel (data files will be included)..."
 # Deploy using Vercel CLI
 # The --prod flag deploys to production
 # Files in the current directory (including data/) will be included
+# For first deployment, this will be interactive to set up the project
+# For subsequent deployments, you can add --yes to skip confirmation
 vercel --prod
 
 echo "✅ Deployment complete!"
