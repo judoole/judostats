@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
 import { JsonStorage } from '@/lib/storage';
-import { IJFClient } from '@/lib/ijf-client';
 
 const storage = new JsonStorage();
-const ijfClient = new IJFClient();
 
 export async function GET(request: Request) {
   try {
@@ -27,32 +25,6 @@ export async function GET(request: Request) {
       
       if (!stats) {
         return NextResponse.json({ error: 'Judoka not found' }, { status: 404 });
-      }
-      
-      // Fetch opponent info for matches that don't have it
-      if (stats.wazaBreakdown) {
-        for (const waza of stats.wazaBreakdown) {
-          if (waza.matches) {
-            for (const match of waza.matches) {
-              if (!match.opponent && match.contestCode) {
-                try {
-                  const matchDetails = await ijfClient.getMatchDetails(match.contestCode);
-                  if (matchDetails) {
-                    const opponent = matchDetails.person1?.id_person?.toString() === judokaId 
-                      ? matchDetails.person2 
-                      : matchDetails.person1;
-                    if (opponent) {
-                      match.opponent = opponent.nm;
-                      match.opponentCountry = opponent.cntr || opponent.cnt;
-                    }
-                  }
-                } catch (error) {
-                  console.error(`Error fetching match details for ${match.contestCode}:`, error);
-                }
-              }
-            }
-          }
-        }
       }
       
       return NextResponse.json({ stats });
