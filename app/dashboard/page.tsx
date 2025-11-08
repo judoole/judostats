@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
+import Link from 'next/link';
 
 // Component for expandable technique list
 function ExpandableTechniqueList({ 
@@ -25,7 +26,12 @@ function ExpandableTechniqueList({
       <div className="space-y-2">
         {visibleTechniques.map((tech, i) => (
           <div key={i} className="flex justify-between items-center py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors">
-            <span className={`font-medium ${colorClass || 'text-gray-700'}`}>{tech.name}</span>
+            <Link 
+              href={`/techniques/${encodeURIComponent(tech.name)}`}
+              className={`font-medium ${colorClass || 'text-gray-700'} hover:underline`}
+            >
+              {tech.name}
+            </Link>
             <span className="font-bold text-lg text-gray-800">{tech.count}x</span>
           </div>
         ))}
