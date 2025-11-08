@@ -9,12 +9,33 @@ export async function GET(request: Request) {
     
     // Parse query parameters
     const { searchParams } = new URL(request.url);
+    
+    // Validate and parse competitionId
+    const competitionIdParam = searchParams.get('competitionId');
+    const competitionId = competitionIdParam ? parseInt(competitionIdParam) : undefined;
+    if (competitionIdParam && (isNaN(competitionId!) || competitionId! < 1 || competitionId! > 999999)) {
+      return NextResponse.json(
+        { error: 'Invalid competition ID' },
+        { status: 400 }
+      );
+    }
+    
+    // Validate and parse year
+    const yearParam = searchParams.get('year');
+    const year = yearParam ? parseInt(yearParam) : undefined;
+    if (yearParam && (isNaN(year!) || year! < 1900 || year! > 2100)) {
+      return NextResponse.json(
+        { error: 'Invalid year. Must be between 1900 and 2100' },
+        { status: 400 }
+      );
+    }
+    
     const filters = {
       gender: searchParams.get('gender') || undefined,
       weightClass: searchParams.get('weightClass') || undefined,
       eventType: searchParams.get('eventType') || undefined,
-      competitionId: searchParams.get('competitionId') ? parseInt(searchParams.get('competitionId')!) : undefined,
-      year: searchParams.get('year') ? parseInt(searchParams.get('year')!) : undefined,
+      competitionId,
+      year,
     };
     
     const stats = storage.getStats(filters);
@@ -23,7 +44,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ stats, availableFilters });
   } catch (error) {
     console.error('Error fetching stats:', error);
-    return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch stats' },
+      { status: 500 }
+    );
   }
 }
 

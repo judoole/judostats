@@ -12,13 +12,40 @@ export async function GET(request: Request) {
     const judokaId = searchParams.get('judokaId');
     const searchTerm = searchParams.get('search');
     
+    // Validate searchTerm length
+    if (searchTerm && searchTerm.length > 100) {
+      return NextResponse.json(
+        { error: 'Search term too long. Maximum 100 characters.' },
+        { status: 400 }
+      );
+    }
+    
     if (judokaId) {
+      // Validate judokaId format (should be numeric string)
+      if (!/^\d+$/.test(judokaId)) {
+        return NextResponse.json(
+          { error: 'Invalid judoka ID format' },
+          { status: 400 }
+        );
+      }
+      
       // Get statistics for a specific judoka
+      const competitionIdParam = searchParams.get('competitionId');
+      const competitionId = competitionIdParam ? parseInt(competitionIdParam) : undefined;
+      
+      // Validate competitionId if provided
+      if (competitionIdParam && (isNaN(competitionId!) || competitionId! < 1 || competitionId! > 999999)) {
+        return NextResponse.json(
+          { error: 'Invalid competition ID' },
+          { status: 400 }
+        );
+      }
+      
       const filters = {
         gender: searchParams.get('gender') || undefined,
         weightClass: searchParams.get('weightClass') || undefined,
         eventType: searchParams.get('eventType') || undefined,
-        competitionId: searchParams.get('competitionId') ? parseInt(searchParams.get('competitionId')!) : undefined,
+        competitionId,
       };
       
       const stats = storage.getJudokaStats(judokaId, filters);
@@ -39,7 +66,10 @@ export async function GET(request: Request) {
     }
   } catch (error) {
     console.error('Error fetching judoka data:', error);
-    return NextResponse.json({ error: 'Failed to fetch judoka data' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch judoka data' },
+      { status: 500 }
+    );
   }
 }
 

@@ -10,7 +10,10 @@ export async function GET() {
     return NextResponse.json(competitions);
   } catch (error) {
     console.error('Error fetching competitions:', error);
-    return NextResponse.json({ error: 'Failed to fetch competitions' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch competitions' },
+      { status: 500 }
+    );
   }
 }
 

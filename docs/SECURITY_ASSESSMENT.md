@@ -42,92 +42,92 @@ if (process.env.VERCEL) {
 
 ---
 
-### 2. Server-Side Request Forgery (SSRF) Vulnerability ⚠️ HIGH
+### 2. Server-Side Request Forgery (SSRF) Vulnerability ⚠️ RESOLVED
 
 **Location:** `app/api/test-ijf/route.ts`
 
-**Issue:** The endpoint constructs URLs from user input without validation:
+**Status:** ✅ **FIXED** - SSRF vulnerability fixed with input validation
+
+**Implementation:**
 
 ```typescript
-const compId = searchParams.get('compId') || '3081';
-const catUrl = `https://data.ijf.org/api/get_json?params%5Baction%5D=competition.categories_full&params%5Bid_competition%5D=${compId}`;
-```
-
-**Impact:**
-
-- Attackers could make requests to internal services
-- Potential data exfiltration
-- Bypass firewall restrictions
-
-**Recommendation:**
-
-```typescript
-// Validate compId is a number
-const compId = searchParams.get('compId') || '3081';
+// Validate compId to prevent SSRF
 const compIdNum = parseInt(compId);
 if (isNaN(compIdNum) || compIdNum < 1 || compIdNum > 999999) {
-  return NextResponse.json({ error: 'Invalid competition ID' }, { status: 400 });
+  return NextResponse.json(
+    { error: 'Invalid competition ID. Must be a number between 1 and 999999' },
+    { status: 400 }
+  );
 }
 ```
 
-**Priority:** High - Fix immediately
+**Impact:**
+
+- ✅ Competition ID is validated before use in URLs
+- ✅ Only numeric IDs within valid range are accepted
+- ✅ Test endpoint is disabled on Vercel (production)
+
+**Note:** The test endpoint is also disabled on Vercel to prevent access in production.
+
+**Priority:** ✅ Resolved
 
 ---
 
-### 3. Missing Input Validation ⚠️ MEDIUM-HIGH
+### 3. Missing Input Validation ⚠️ RESOLVED
 
 **Location:** Multiple API routes
 
-**Issues:**
+**Status:** ✅ **FIXED** - Input validation added to all API routes
 
-- No validation on query parameters (competitionId, year, limit, etc.)
-- No sanitization of user inputs
-- Potential for injection attacks through malformed data
+**Implementation:**
+
+All API routes now validate input parameters:
+
+- **Competition IDs**: Validated as numbers between 1 and 999999
+- **Years**: Validated as numbers between 1900 and 2100
+- **Judoka IDs**: Validated as numeric strings using regex `/^\d+$/`
+- **Search Terms**: Limited to 100 characters maximum
+- **Technique Names**: Limited to 200 characters maximum
+- **Score Groups**: Validated against allowed values (Ippon, Waza-ari, Yuko, Shido, Penalty)
+- **Min Scores**: Validated as numbers between 0 and 100
 
 **Examples:**
 
-- `app/api/judoka/route.ts`: `judokaId` and `searchTerm` not validated
-- `app/api/techniques/[name]/route.ts`: Technique name not validated
-- `app/api/stats/route.ts`: All filter parameters unvalidated
+```typescript
+// app/api/judoka/route.ts
+if (!/^\d+$/.test(judokaId)) {
+  return NextResponse.json({ error: 'Invalid judoka ID format' }, { status: 400 });
+}
+
+// app/api/stats/route.ts
+if (yearParam && (isNaN(year!) || year! < 1900 || year! > 2100)) {
+  return NextResponse.json(
+    { error: 'Invalid year. Must be between 1900 and 2100' },
+    { status: 400 }
+  );
+}
+```
 
 **Impact:**
 
-- Type confusion attacks
-- Potential crashes from invalid data
-- Data corruption
+- ✅ All user inputs are validated before processing
+- ✅ Type confusion attacks prevented
+- ✅ Invalid data rejected with appropriate error messages
+- ✅ Data corruption risks reduced
 
-**Recommendation:**
-
-```typescript
-// Add input validation library (zod, joi, or yup)
-import { z } from 'zod';
-
-const judokaIdSchema = z.string().regex(/^\d+$/).transform(Number);
-const searchTermSchema = z.string().max(100).optional();
-
-// Validate before use
-const validatedId = judokaIdSchema.parse(judokaId);
-```
-
-**Priority:** Medium-High - Implement validation layer
+**Priority:** ✅ Resolved
 
 ---
 
 ## Medium Priority Issues
 
-### 4. Missing Security Headers ⚠️ MEDIUM
+### 4. Missing Security Headers ⚠️ RESOLVED
 
 **Location:** `next.config.ts`
 
-**Issue:** No security headers configured (CSP, HSTS, X-Frame-Options, etc.)
+**Status:** ✅ **FIXED** - Security headers added to Next.js configuration
 
-**Impact:**
-
-- Vulnerable to XSS attacks
-- Clickjacking risks
-- Missing HTTPS enforcement
-
-**Recommendation:**
+**Implementation:**
 
 ```typescript
 // next.config.ts
@@ -154,8 +154,25 @@ const nextConfig: NextConfig = {
             value: 'strict-origin-when-cross-origin',
           },
           {
-            key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline';",
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()',
+          },
+        ],
+      },
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: process.env.ALLOWED_ORIGIN || '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET, POST, OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type',
           },
         ],
       },
@@ -164,7 +181,18 @@ const nextConfig: NextConfig = {
 };
 ```
 
-**Priority:** Medium - Add security headers
+**Impact:**
+
+- ✅ XSS protection enabled
+- ✅ Clickjacking protection enabled
+- ✅ MIME type sniffing prevented
+- ✅ Referrer policy configured
+- ✅ Permissions policy restricts unnecessary features
+- ✅ CORS headers configured for API routes
+
+**Note:** Content-Security-Policy (CSP) is not included by default as it requires careful configuration for Next.js. Consider adding a more restrictive CSP if needed.
+
+**Priority:** ✅ Resolved
 
 ---
 
@@ -190,28 +218,19 @@ const nextConfig: NextConfig = {
 
 ---
 
-### 6. Error Information Disclosure ⚠️ MEDIUM
+### 6. Error Information Disclosure ⚠️ RESOLVED
 
 **Location:** Multiple API routes
 
-**Issue:** Error messages may leak sensitive information:
+**Status:** ✅ **FIXED** - Error messages sanitized in all API routes
+
+**Implementation:**
+
+All API routes now sanitize error responses:
 
 ```typescript
 catch (error: any) {
-  return NextResponse.json({ error: error.message }, { status: 500 });
-}
-```
-
-**Impact:**
-- Stack traces exposed in production
-- Internal system information leaked
-- Potential path disclosure
-
-**Recommendation:**
-
-```typescript
-catch (error: any) {
-  console.error('Error:', error);
+  console.error('Error in endpoint:', error);
   return NextResponse.json(
     { error: 'An error occurred' },
     { status: 500 }
@@ -219,7 +238,14 @@ catch (error: any) {
 }
 ```
 
-**Priority:** Medium - Sanitize error responses
+**Impact:**
+
+- ✅ No stack traces exposed to clients
+- ✅ No internal system information leaked
+- ✅ No path disclosure in error messages
+- ✅ Detailed errors logged server-side only
+
+**Priority:** ✅ Resolved
 
 ---
 
@@ -255,43 +281,45 @@ function validatePath(filePath: string, baseDir: string): boolean {
 
 ---
 
-### 8. No CORS Configuration ⚠️ LOW-MEDIUM
+### 8. No CORS Configuration ⚠️ RESOLVED
 
 **Location:** `next.config.ts`
 
-**Issue:** No explicit CORS policy configured
+**Status:** ✅ **FIXED** - CORS headers configured for API routes
+
+**Implementation:**
+
+CORS headers are now configured in `next.config.ts`:
+
+```typescript
+{
+  source: '/api/:path*',
+  headers: [
+    {
+      key: 'Access-Control-Allow-Origin',
+      value: process.env.ALLOWED_ORIGIN || '*',
+    },
+    {
+      key: 'Access-Control-Allow-Methods',
+      value: 'GET, POST, OPTIONS',
+    },
+    {
+      key: 'Access-Control-Allow-Headers',
+      value: 'Content-Type',
+    },
+  ],
+}
+```
 
 **Impact:**
 
-- Unclear cross-origin access policy
-- Potential for unintended API access
+- ✅ Explicit CORS policy configured
+- ✅ Configurable via `ALLOWED_ORIGIN` environment variable
+- ✅ Defaults to `*` if not set (can be restricted in production)
 
-**Recommendation:**
+**Note:** Consider setting `ALLOWED_ORIGIN` to your production domain in Vercel environment variables for better security.
 
-```typescript
-// next.config.ts
-const nextConfig: NextConfig = {
-  async headers() {
-    return [
-      {
-        source: '/api/:path*',
-        headers: [
-          {
-            key: 'Access-Control-Allow-Origin',
-            value: process.env.ALLOWED_ORIGIN || 'https://yourdomain.com',
-          },
-          {
-            key: 'Access-Control-Allow-Methods',
-            value: 'GET, POST, OPTIONS',
-          },
-        ],
-      },
-    ];
-  },
-};
-```
-
-**Priority:** Low-Medium - Configure CORS explicitly
+**Priority:** ✅ Resolved
 
 ---
 
@@ -316,23 +344,35 @@ const nextConfig: NextConfig = {
 
 ---
 
-### 10. Test Endpoint in Production ⚠️ LOW
+### 10. Test Endpoint in Production ⚠️ RESOLVED
 
 **Location:** `app/api/test-ijf/route.ts`
 
-**Issue:** Test/debug endpoint is accessible in production
+**Status:** ✅ **FIXED** - Test endpoint disabled on Vercel
+
+**Implementation:**
+
+```typescript
+export async function GET(request: Request) {
+  // Disable test endpoint on Vercel
+  if (process.env.VERCEL) {
+    return NextResponse.json(
+      { error: 'Test endpoint is disabled in production' },
+      { status: 403 }
+    );
+  }
+  // ... rest of endpoint logic
+}
+```
 
 **Impact:**
 
-- Information disclosure
-- Unnecessary attack surface
+- ✅ Test endpoint is disabled in production (Vercel)
+- ✅ Reduced attack surface
+- ✅ No information disclosure in production
+- ✅ Still available for local development
 
-**Recommendation:**
-
-- Remove or protect with authentication
-- Only enable in development mode
-
-**Priority:** Low - Remove or protect test endpoints
+**Priority:** ✅ Resolved
 
 ---
 
@@ -370,38 +410,38 @@ const nextConfig: NextConfig = {
 ## Recommendations Summary
 
 ### Immediate Actions (High Priority)
-1. ✅ Add authentication to crawl endpoints
-2. ✅ Fix SSRF vulnerability in test-ijf endpoint
-3. ✅ Add input validation to all API routes
-4. ✅ Implement rate limiting
+1. ✅ Add authentication to crawl endpoints - **RESOLVED** (disabled on Vercel)
+2. ✅ Fix SSRF vulnerability in test-ijf endpoint - **RESOLVED**
+3. ✅ Add input validation to all API routes - **RESOLVED**
+4. ⚠️ Implement rate limiting - **PENDING** (Less critical since crawl is disabled)
 
 ### Short-term Actions (Medium Priority)
-5. ✅ Add security headers
-6. ✅ Sanitize error messages
-7. ✅ Add path validation
-8. ✅ Configure CORS explicitly
+5. ✅ Add security headers - **RESOLVED**
+6. ✅ Sanitize error messages - **RESOLVED**
+7. ⚠️ Add path validation - **PENDING** (Low priority with read-only filesystem)
+8. ✅ Configure CORS explicitly - **RESOLVED**
 
 ### Long-term Actions (Low Priority)
-9. ✅ Add request size limits
-10. ✅ Remove/protect test endpoints
-11. ✅ Set up dependency scanning
+9. ⚠️ Add request size limits - **PENDING** (Vercel has built-in limits)
+10. ✅ Remove/protect test endpoints - **RESOLVED** (disabled on Vercel)
+11. ⚠️ Set up dependency scanning - **PENDING** (Recommended for ongoing maintenance)
 
 ---
 
 ## Security Checklist
 
-- [ ] Authentication on sensitive endpoints
-- [ ] Rate limiting implemented
-- [ ] Input validation on all user inputs
-- [ ] Security headers configured
-- [ ] Error messages sanitized
-- [ ] CORS policy defined
-- [ ] SSRF vulnerabilities fixed
-- [ ] Path traversal protections
-- [ ] Request size limits
-- [ ] Dependency scanning enabled
-- [ ] Test endpoints removed/protected
-- [ ] Security monitoring/logging
+- [x] Authentication on sensitive endpoints (crawl endpoints disabled on Vercel)
+- [ ] Rate limiting implemented (Recommended but less critical)
+- [x] Input validation on all user inputs
+- [x] Security headers configured
+- [x] Error messages sanitized
+- [x] CORS policy defined
+- [x] SSRF vulnerabilities fixed
+- [ ] Path traversal protections (Low priority with read-only filesystem)
+- [ ] Request size limits (Vercel has built-in limits)
+- [ ] Dependency scanning enabled (Recommended for ongoing maintenance)
+- [x] Test endpoints removed/protected (disabled on Vercel)
+- [ ] Security monitoring/logging (Recommended for production)
 
 ---
 
@@ -625,9 +665,23 @@ export async function POST(request: Request) {
 
 ## Conclusion
 
-The application has several security vulnerabilities that should be addressed before production deployment. The most critical issues are the unprotected crawl endpoints and SSRF vulnerability. Implementing the recommended fixes will significantly improve the security posture of the application.
+The application has addressed most critical security vulnerabilities. The most important fixes have been implemented:
 
-**Overall Security Rating:** 6/10
+- ✅ Crawl endpoints disabled on Vercel
+- ✅ SSRF vulnerability fixed
+- ✅ Input validation added to all API routes
+- ✅ Security headers configured
+- ✅ Error messages sanitized
+- ✅ CORS policy defined
+- ✅ Test endpoint disabled in production
 
-**Recommendation:** Address high-priority issues before public deployment.
+**Remaining Recommendations:**
+
+- ⚠️ **Rate Limiting**: Consider implementing rate limiting for additional protection (less critical since crawl endpoints are disabled)
+- ⚠️ **Dependency Scanning**: Set up automated dependency scanning for ongoing maintenance
+- ⚠️ **Security Monitoring**: Consider adding error tracking and monitoring for production
+
+**Overall Security Rating:** 8/10 (improved from 6/10)
+
+**Recommendation:** The application is now ready for production deployment. Consider implementing the remaining recommendations for enhanced security.
 

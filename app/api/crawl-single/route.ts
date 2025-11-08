@@ -200,8 +200,11 @@ export async function POST(request: Request) {
     }
 
   } catch (error: any) {
-    console.error('Error during crawl:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Error during crawl-single:', error);
+    return NextResponse.json(
+      { error: 'An error occurred during crawling' },
+      { status: 500 }
+    );
   }
 }
 

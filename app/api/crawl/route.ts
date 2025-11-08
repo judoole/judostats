@@ -181,7 +181,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, message: 'Crawl completed' });
   } catch (error: any) {
     console.error('Error during crawl:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'An error occurred during crawling' },
+      { status: 500 }
+    );
   }
 }
 
