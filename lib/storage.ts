@@ -451,13 +451,21 @@ export class JsonStorage {
     this.competitions.forEach(comp => {
       comp.categories?.forEach(cat => {
         cat.matches?.forEach(match => {
-          if (match.contestCode && match.competitors) {
-            const opponentData = match.competitors.find(c => (c.competitorId?.toString() || '') !== judokaId);
-            matchMap.set(match.contestCode, { 
-              opponent: opponentData?.name, 
-              opponentCountry: opponentData?.country || opponentData?.countryCode,
-              competitionId: comp.id 
+          if (match.contestCode && match.competitors && match.competitors.length > 0) {
+            // Find the opponent (the competitor who is NOT the judoka)
+            const opponentData = match.competitors.find(c => {
+              const cId = c.competitorId?.toString() || '';
+              const jId = judokaId.toString();
+              return cId !== jId && cId !== '' && jId !== '';
             });
+            
+            if (opponentData) {
+              matchMap.set(match.contestCode, { 
+                opponent: opponentData.name, 
+                opponentCountry: opponentData.country || opponentData.countryCode,
+                competitionId: comp.id 
+              });
+            }
           }
         });
       });
