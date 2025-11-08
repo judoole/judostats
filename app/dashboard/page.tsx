@@ -25,15 +25,17 @@ function ExpandableTechniqueList({
       <h2 className="text-lg font-semibold mb-6 text-gray-900">{title}</h2>
       <div className="space-y-1">
         {visibleTechniques.map((tech, i) => (
-          <div key={i} className="flex justify-between items-center py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors">
-            <Link 
-              href={`/techniques/${encodeURIComponent(tech.name)}`}
-              className={`font-medium ${colorClass || 'text-gray-700'} hover:underline`}
-            >
+          <Link 
+            key={i}
+            href={`/techniques/${encodeURIComponent(tech.name)}`}
+            className="flex justify-between items-center py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors group"
+          >
+            <span className={`font-medium ${colorClass || 'text-blue-600'} group-hover:text-blue-700 group-hover:underline flex items-center gap-2`}>
               {tech.name}
-            </Link>
+              <span className="text-gray-400 group-hover:text-blue-500 text-xs">→</span>
+            </span>
             <span className="font-semibold text-base text-gray-800">{tech.count}x</span>
-          </div>
+          </Link>
         ))}
       </div>
       {hasMore && (

@@ -52,8 +52,11 @@ function TechniqueCard({
 
   return (
     <div className="bg-white p-8 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
-      <Link href={`/techniques/${encodeURIComponent(tech.name)}`}>
-        <h3 className="text-lg font-semibold mb-6 hover:text-gray-700 cursor-pointer transition-colors text-gray-900">{tech.name}</h3>
+      <Link href={`/techniques/${encodeURIComponent(tech.name)}`} className="group">
+        <h3 className="text-lg font-semibold mb-6 text-blue-600 group-hover:text-blue-700 group-hover:underline cursor-pointer transition-colors flex items-center gap-2">
+          {tech.name}
+          <span className="text-gray-400 group-hover:text-blue-500 text-sm">→</span>
+        </h3>
       </Link>
       
       <div className="space-y-2 mb-6">
