@@ -30,21 +30,24 @@ export default function RootLayout({
               <div className="flex items-center space-x-1">
                 <Link
                   href="/dashboard"
-                  className="text-gray-200 hover:text-white hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="text-gray-200 hover:text-white hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                 >
-                  Dashboard
+                  <span>📊</span>
+                  <span>Dashboard</span>
                 </Link>
                 <Link
                   href="/techniques"
-                  className="text-gray-200 hover:text-white hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="text-gray-200 hover:text-white hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                 >
-                  Techniques
+                  <span>🎯</span>
+                  <span>Techniques</span>
                 </Link>
                 <Link
                   href="/judoka"
-                  className="text-gray-200 hover:text-white hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="text-gray-200 hover:text-white hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                 >
-                  Judoka
+                  <span>👤</span>
+                  <span>Judoka</span>
                 </Link>
               </div>
             </div>
