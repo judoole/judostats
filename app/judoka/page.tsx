@@ -13,6 +13,7 @@ interface JudokaListItem {
 interface MatchInfo {
   contestCode: string;
   opponent?: string;
+  opponentCountry?: string;
   competitionName?: string;
   year?: number;
 }
@@ -186,7 +187,14 @@ export default function JudokaPage() {
                                     <span className="text-lg">🎥</span>
                                     <div className="flex-1">
                                       <div className="font-semibold text-blue-700">
-                                        {match.opponent ? `vs ${match.opponent}` : 'Watch Match'}
+                                        {match.opponent ? (
+                                          <>
+                                            vs {match.opponent}
+                                            {match.opponentCountry && (
+                                              <span className="text-gray-600 font-normal ml-1">({match.opponentCountry})</span>
+                                            )}
+                                          </>
+                                        ) : 'Watch Match'}
                                       </div>
                                       <div className="text-xs text-gray-600 mt-1">
                                         {match.competitionName}

@@ -447,20 +447,24 @@ export class JsonStorage {
       }
     });
     
-    const matchMap = new Map<string, { opponent?: string; competitionId?: number }>();
+    const matchMap = new Map<string, { opponent?: string; opponentCountry?: string; competitionId?: number }>();
     this.competitions.forEach(comp => {
       comp.categories?.forEach(cat => {
         cat.matches?.forEach(match => {
           if (match.contestCode && match.competitors) {
-            const opponent = match.competitors.find(c => (c.competitorId?.toString() || '') !== judokaId)?.name;
-            matchMap.set(match.contestCode, { opponent, competitionId: comp.id });
+            const opponentData = match.competitors.find(c => (c.competitorId?.toString() || '') !== judokaId);
+            matchMap.set(match.contestCode, { 
+              opponent: opponentData?.name, 
+              opponentCountry: opponentData?.country || opponentData?.countryCode,
+              competitionId: comp.id 
+            });
           }
         });
       });
     });
     
     // Aggregate waza statistics
-    const wazaStats: Record<string, { count: number; totalScore: number; ippon: number; wazaAri: number; yuko: number; matches: Map<string, { contestCode: string; opponent?: string; competitionName?: string; year?: number }> }> = {};
+    const wazaStats: Record<string, { count: number; totalScore: number; ippon: number; wazaAri: number; yuko: number; matches: Map<string, { contestCode: string; opponent?: string; opponentCountry?: string; competitionName?: string; year?: number }> }> = {};
     
     filteredTechniques.forEach(tech => {
       const wazaName = tech.techniqueName || tech.technique_name || 'Unknown';
@@ -482,6 +486,7 @@ export class JsonStorage {
         wazaStats[wazaName].matches.set(contestCode, {
           contestCode,
           opponent: matchInfo?.opponent,
+          opponentCountry: matchInfo?.opponentCountry,
           competitionName: compInfo?.name || tech.competitionName,
           year: compInfo?.year,
         });
