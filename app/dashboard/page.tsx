@@ -21,25 +21,25 @@ function ExpandableTechniqueList({
   const hasMore = techniques.length > displayCount;
 
   return (
-    <div className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow border border-gray-100">
-      <h2 className="text-xl font-bold mb-4 text-gray-800">{title}</h2>
-      <div className="space-y-2">
+    <div className="bg-white p-8 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
+      <h2 className="text-lg font-semibold mb-6 text-gray-900">{title}</h2>
+      <div className="space-y-1">
         {visibleTechniques.map((tech, i) => (
-          <div key={i} className="flex justify-between items-center py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors">
+          <div key={i} className="flex justify-between items-center py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors">
             <Link 
               href={`/techniques/${encodeURIComponent(tech.name)}`}
               className={`font-medium ${colorClass || 'text-gray-700'} hover:underline`}
             >
               {tech.name}
             </Link>
-            <span className="font-bold text-lg text-gray-800">{tech.count}x</span>
+            <span className="font-semibold text-base text-gray-800">{tech.count}x</span>
           </div>
         ))}
       </div>
       {hasMore && (
         <button
           onClick={() => setShowAll(!showAll)}
-          className="mt-4 w-full py-2 px-4 text-blue-600 hover:text-blue-800 hover:bg-blue-50 font-semibold rounded-lg transition-colors"
+          className="mt-6 w-full py-2.5 px-4 text-gray-600 hover:text-gray-900 hover:bg-gray-50 font-medium rounded-lg transition-colors border border-gray-200"
         >
           {showAll ? '↑ Show Less' : `↓ Show All (${techniques.length})`}
         </button>
@@ -48,15 +48,6 @@ function ExpandableTechniqueList({
   );
 }
 
-interface Stat {
-  totalCompetitions: number;
-  totalMatches: number;
-  totalTechniques: number;
-  topTechniques: Array<{ name: string; count: number; avgScore: number }>;
-  competitionsByYear: Array<{ year: number; count: number }>;
-  techniquesByScoreGroup: Array<{ group: string; count: number }>;
-  topTechniquesByGroup: Record<string, Array<{ name: string; count: number }>>;
-}
 
 interface Competition {
   id: number;
@@ -118,16 +109,16 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold mb-8">Judo Stats</h1>
+    <div className="container mx-auto px-6 py-10">
+      <h1 className="text-3xl font-semibold mb-10 text-gray-900">Judo Stats</h1>
 
       {/* Filter Controls */}
-      <div className="mb-6 space-y-4">
-        <div className="flex flex-wrap gap-4">
+      <div className="mb-10 space-y-4">
+        <div className="flex flex-wrap gap-3">
           <select
             value={selectedCompetition || ''}
             onChange={(e) => setSelectedCompetition(e.target.value ? parseInt(e.target.value) : null)}
-            className="px-4 py-2 border rounded-lg"
+            className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
           >
             <option value="">All Competitions</option>
             {competitions?.map((comp) => (
@@ -139,10 +130,10 @@ export default function Dashboard() {
           <select
             value={selectedGender}
             onChange={(e) => setSelectedGender(e.target.value)}
-            className="px-4 py-2 border rounded-lg"
+            className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
           >
             <option value="">All Genders</option>
-            {availableFilters.genders.map((g) => (
+            {availableFilters.genders.map((g: string) => (
               <option key={g} value={g}>
                 {g === 'm' ? 'Male' : g === 'f' ? 'Female' : g}
               </option>
@@ -151,10 +142,10 @@ export default function Dashboard() {
           <select
             value={selectedWeightClass}
             onChange={(e) => setSelectedWeightClass(e.target.value)}
-            className="px-4 py-2 border rounded-lg"
+            className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
           >
             <option value="">All Weight Classes</option>
-            {availableFilters.weightClasses.map((wc) => (
+            {availableFilters.weightClasses.map((wc: string) => (
               <option key={wc} value={wc}>
                 {wc}
               </option>
@@ -163,10 +154,10 @@ export default function Dashboard() {
           <select
             value={selectedEventType}
             onChange={(e) => setSelectedEventType(e.target.value)}
-            className="px-4 py-2 border rounded-lg"
+            className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
           >
             <option value="">All Event Types</option>
-            {availableFilters.eventTypes.map((et) => (
+            {availableFilters.eventTypes.map((et: string) => (
               <option key={et} value={et}>
                 {et}
               </option>
@@ -175,10 +166,10 @@ export default function Dashboard() {
           <select
             value={selectedYear ? String(selectedYear) : ''}
             onChange={(e) => setSelectedYear(e.target.value ? parseInt(e.target.value) : null)}
-            className="px-4 py-2 border rounded-lg"
+            className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
           >
             <option value="">All Years</option>
-            {(availableFilters.years || []).map((year) => (
+            {(availableFilters.years || []).map((year: number) => (
               <option key={year} value={String(year)}>
                 {year}
               </option>
@@ -187,49 +178,46 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
         <StatCard title="Total Competitions" value={stats.totalCompetitions} icon="🏆" />
         <StatCard title="Total Matches" value={stats.totalMatches} icon="🥋" />
         <StatCard title="Total Techniques" value={stats.totalTechniques} icon="🎯" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
         {stats.topTechniquesByGroup['Ippon'] && (
           <ExpandableTechniqueList 
             title="Top Ippon Techniques" 
             techniques={stats.topTechniquesByGroup['Ippon']}
-            colorClass="text-red-600"
           />
         )}
         {stats.topTechniquesByGroup['Waza-ari'] && (
           <ExpandableTechniqueList 
             title="Top Waza-ari Techniques" 
             techniques={stats.topTechniquesByGroup['Waza-ari']}
-            colorClass="text-orange-600"
           />
         )}
         {stats.topTechniquesByGroup['Yuko'] && (
           <ExpandableTechniqueList 
             title="Top Yuko Techniques" 
             techniques={stats.topTechniquesByGroup['Yuko']}
-            colorClass="text-blue-600"
           />
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <ExpandableTechniqueList 
           title="Top Techniques (Overall)" 
-          techniques={stats.topTechniques.map(t => ({ name: t.name, count: t.count }))}
+          techniques={stats.topTechniques.map((t: { name: string; count: number }) => ({ name: t.name, count: t.count }))}
         />
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-bold mb-4">Competitions by Year</h2>
-          <div className="space-y-2">
-            {stats.competitionsByYear.map((item, i) => (
-              <div key={i} className="flex justify-between items-center">
-                <span>{item.year}</span>
-                <span className="font-semibold">{item.count}</span>
+        <div className="bg-white p-8 rounded-lg border border-gray-200">
+          <h2 className="text-lg font-semibold mb-6 text-gray-900">Competitions by Year</h2>
+          <div className="space-y-1">
+            {stats.competitionsByYear.map((item: { year: number; count: number }, i: number) => (
+              <div key={i} className="flex justify-between items-center py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors">
+                <span className="text-gray-700">{item.year}</span>
+                <span className="font-semibold text-gray-900">{item.count}</span>
               </div>
             ))}
           </div>
@@ -241,15 +229,15 @@ export default function Dashboard() {
 
 function StatCard({ title, value, icon }: { title: string; value: number; icon: string }) {
   return (
-    <div className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow border border-gray-100">
+    <div className="bg-white p-8 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-gray-600 text-sm font-medium mb-1">{title}</p>
-          <p className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+          <p className="text-gray-600 text-sm font-medium mb-2">{title}</p>
+          <p className="text-3xl font-semibold text-gray-900">
             {value.toLocaleString()}
           </p>
         </div>
-        <div className="text-5xl opacity-20">{icon}</div>
+        <div className="text-4xl opacity-10">{icon}</div>
       </div>
     </div>
   );

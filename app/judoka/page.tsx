@@ -96,25 +96,25 @@ export default function JudokaPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold mb-8">Judoka Statistics</h1>
+    <div className="container mx-auto px-6 py-10">
+      <h1 className="text-3xl font-semibold mb-10 text-gray-900">Judoka Statistics</h1>
 
       {!selectedJudoka ? (
         <div>
-          <div className="bg-white p-6 rounded-xl shadow-md mb-6">
-            <h2 className="text-2xl font-bold mb-4">Search Judoka</h2>
-            <div className="flex gap-2 mb-4">
+          <div className="bg-white p-8 rounded-lg border border-gray-200 mb-8">
+            <h2 className="text-xl font-semibold mb-6 text-gray-900">Search Judoka</h2>
+            <div className="flex gap-3 mb-4">
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                 placeholder="Search by name..."
-                className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
               />
               <button
                 onClick={handleSearch}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-6 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium"
               >
                 Search
               </button>
@@ -125,18 +125,18 @@ export default function JudokaPage() {
           </div>
 
           {searchData?.judokaList && searchData.judokaList.length > 0 && (
-            <div className="bg-white p-6 rounded-xl shadow-md">
-              <h3 className="text-xl font-bold mb-4">Search Results ({searchData.judokaList.length})</h3>
-              <div className="grid gap-3">
+            <div className="bg-white p-8 rounded-lg border border-gray-200">
+              <h3 className="text-lg font-semibold mb-6 text-gray-900">Search Results ({searchData.judokaList.length})</h3>
+              <div className="grid gap-2">
                 {searchData.judokaList.map((judoka: JudokaListItem) => (
                   <button
                     key={judoka.id}
                     onClick={() => handleSelectJudoka(judoka.id)}
-                    className="text-left p-4 border rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                    className="text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
                   >
                     <div className="flex justify-between items-center">
-                      <span className="font-semibold text-lg">{judoka.name}</span>
-                      <span className="text-gray-600">{judoka.totalTechniques} techniques</span>
+                      <span className="font-medium text-gray-900">{judoka.name}</span>
+                      <span className="text-gray-600 text-sm">{judoka.totalTechniques} techniques</span>
                     </div>
                   </button>
                 ))}
@@ -154,57 +154,57 @@ export default function JudokaPage() {
         <div>
           <button
             onClick={clearSelection}
-            className="mb-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+            className="mb-6 px-4 py-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-50 transition-colors border border-gray-200 font-medium"
           >
             ← Back to Search
           </button>
 
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="text-xl">Loading...</div>
+              <div className="text-xl text-gray-600">Loading...</div>
             </div>
           ) : judokaStats?.stats ? (
-            <div className="space-y-6">
-              <div className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-xl shadow-md border border-gray-100">
-                <h2 className="text-3xl font-bold mb-2">{judokaStats.stats.name}</h2>
+            <div className="space-y-8">
+              <div className="bg-white p-8 rounded-lg border border-gray-200">
+                <h2 className="text-2xl font-semibold mb-3 text-gray-900">{judokaStats.stats.name}</h2>
                 <p className="text-gray-600">
-                  Total scores collected: <span className="font-bold text-blue-600">{judokaStats.stats.totalTechniques}</span>
+                  Total scores collected: <span className="font-semibold text-gray-900">{judokaStats.stats.totalTechniques}</span>
                 </p>
               </div>
 
-              <div className="bg-white p-6 rounded-xl shadow-md">
-                <h3 className="text-2xl font-bold mb-4">Waza Breakdown</h3>
-                <div className="space-y-3">
+              <div className="bg-white p-8 rounded-lg border border-gray-200">
+                <h3 className="text-xl font-semibold mb-6 text-gray-900">Waza Breakdown</h3>
+                <div className="space-y-4">
                   {judokaStats.stats.wazaBreakdown.map((waza: WazaBreakdown, index: number) => (
                     <div
                       key={index}
-                      className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                      className="border border-gray-200 rounded-lg p-6 hover:bg-gray-50 hover:border-gray-300 transition-colors"
                     >
-                      <div className="flex justify-between items-start mb-2">
+                      <div className="flex justify-between items-start mb-3">
                         <div className="flex-1">
-                          <h4 className="font-bold text-lg text-gray-800">{waza.name}</h4>
-                          <div className="flex gap-4 mt-2 text-sm">
+                          <h4 className="font-semibold text-lg text-gray-900 mb-3">{waza.name}</h4>
+                          <div className="flex gap-6 mb-4 text-sm">
                             <span className="text-gray-600">
-                              Count: <span className="font-semibold">{waza.count}</span>
+                              Count: <span className="font-medium text-gray-900">{waza.count}</span>
                             </span>
                             <span className="text-gray-600">
-                              %: <span className="font-semibold">{waza.percentage}%</span>
+                              %: <span className="font-medium text-gray-900">{waza.percentage}%</span>
                             </span>
                           </div>
                           {waza.matches && waza.matches.length > 0 && (
-                            <div className="mt-3 space-y-2">
+                            <div className="mt-4 space-y-2">
                               {waza.matches.map((match, idx) => (
                                 <a
                                   key={idx}
                                   href={`https://judobase.ijf.org/#/competition/contest/${match.contestCode}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="block p-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-colors"
+                                  className="block p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 hover:border-gray-300 transition-colors"
                                 >
                                   <div className="flex items-center gap-2">
                                     <span className="text-lg">🎥</span>
                                     <div className="flex-1">
-                                      <div className="font-semibold text-blue-700">
+                                      <div className="font-medium text-gray-900">
                                         {match.opponent ? (
                                           <>
                                             vs {match.opponent}
@@ -214,7 +214,7 @@ export default function JudokaPage() {
                                           </>
                                         ) : 'Watch Match'}
                                         {match.scoreGroup && (
-                                          <span className="ml-2 px-2 py-0.5 text-xs font-semibold rounded bg-blue-100 text-blue-800">
+                                          <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded bg-gray-200 text-gray-700">
                                             {match.scoreGroup}
                                           </span>
                                         )}
@@ -232,17 +232,17 @@ export default function JudokaPage() {
                         </div>
                         <div className="flex gap-2 text-xs">
                           {waza.ippon > 0 && (
-                            <span className="px-2 py-1 bg-red-100 text-red-700 rounded">
+                            <span className="px-2.5 py-1 bg-red-50 text-red-700 rounded border border-red-100">
                               Ippon: {waza.ippon}
                             </span>
                           )}
                           {waza.wazaAri > 0 && (
-                            <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded">
+                            <span className="px-2.5 py-1 bg-orange-50 text-orange-700 rounded border border-orange-100">
                               Waza-ari: {waza.wazaAri}
                             </span>
                           )}
                           {waza.yuko > 0 && (
-                            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                            <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded border border-blue-100">
                               Yuko: {waza.yuko}
                             </span>
                           )}

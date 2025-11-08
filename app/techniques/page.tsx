@@ -51,50 +51,50 @@ function TechniqueCard({
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow">
+    <div className="bg-white p-8 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
       <Link href={`/techniques/${encodeURIComponent(tech.name)}`}>
-        <h3 className="text-xl font-bold mb-4 hover:text-blue-600 cursor-pointer transition-colors">{tech.name}</h3>
+        <h3 className="text-lg font-semibold mb-6 hover:text-gray-700 cursor-pointer transition-colors text-gray-900">{tech.name}</h3>
       </Link>
       
-      <div className="space-y-2">
-        <div className="flex justify-between items-center">
-          <span className="text-gray-600">Total</span>
-          <span className="font-semibold">{tech.totalCount}x</span>
+      <div className="space-y-2 mb-6">
+        <div className="flex justify-between items-center py-2">
+          <span className="text-gray-600 text-sm">Total</span>
+          <span className="font-medium text-gray-900">{tech.totalCount}x</span>
         </div>
         
         {tech.ippon > 0 && (
-          <div className="flex justify-between items-center">
-            <span className="text-red-600">Ippon</span>
-            <span className="font-semibold">{tech.ippon}x</span>
+          <div className="flex justify-between items-center py-2">
+            <span className="text-red-600 text-sm">Ippon</span>
+            <span className="font-medium text-gray-900">{tech.ippon}x</span>
           </div>
         )}
         
         {tech.wazaAri > 0 && (
-          <div className="flex justify-between items-center">
-            <span className="text-orange-600">Waza-ari</span>
-            <span className="font-semibold">{tech.wazaAri}x</span>
+          <div className="flex justify-between items-center py-2">
+            <span className="text-orange-600 text-sm">Waza-ari</span>
+            <span className="font-medium text-gray-900">{tech.wazaAri}x</span>
           </div>
         )}
         
         {tech.yuko > 0 && (
-          <div className="flex justify-between items-center">
-            <span className="text-blue-600">Yuko</span>
-            <span className="font-semibold">{tech.yuko}x</span>
+          <div className="flex justify-between items-center py-2">
+            <span className="text-blue-600 text-sm">Yuko</span>
+            <span className="font-medium text-gray-900">{tech.yuko}x</span>
           </div>
         )}
       </div>
 
       <button
         onClick={handleLoadMatches}
-        className="mt-4 text-blue-600 hover:text-blue-800 font-semibold text-sm"
+        className="mt-4 text-gray-600 hover:text-gray-900 font-medium text-sm border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors"
         disabled={loadingMatches}
       >
         {loadingMatches ? 'Loading...' : showMatches ? 'Hide Matches' : `View Matches (${tech.totalCount})`}
       </button>
 
       {showMatches && matches.length > 0 && (
-        <div className="mt-4 border-t pt-4 space-y-2 max-h-64 overflow-y-auto">
-          <div className="text-sm font-semibold text-gray-700 mb-2">
+        <div className="mt-6 border-t border-gray-200 pt-4 space-y-2 max-h-64 overflow-y-auto">
+          <div className="text-sm font-medium text-gray-700 mb-3">
             Match Links ({matches.length} unique matches)
           </div>
           {matches.map((match, i) => (
@@ -103,7 +103,7 @@ function TechniqueCard({
               href={match.matchUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="block text-xs text-blue-600 hover:text-blue-800 hover:underline"
+              className="block text-xs text-gray-600 hover:text-gray-900 hover:underline py-1"
             >
               • {match.competitor} - {match.competition} ({match.scoreGroup})
             </a>
@@ -135,7 +135,7 @@ function TechniqueCardList({
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
       {techniques.map((tech, i) => (
         <TechniqueCard key={i} tech={tech} filters={filters} />
       ))}
@@ -223,31 +223,31 @@ export default function TechniquesPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-4xl font-bold">Throws & Scores (Nage-waza)</h1>
+    <div className="container mx-auto px-6 py-10">
+      <div className="flex justify-between items-center mb-10">
+        <h1 className="text-3xl font-semibold text-gray-900">Throws & Scores (Nage-waza)</h1>
         {aggregatedTechniques.length > 0 && (
-          <div className="text-xl font-semibold text-gray-600">
+          <div className="text-lg font-medium text-gray-600">
             {aggregatedTechniques.length} unique techniques
           </div>
         )}
       </div>
 
-      <div className="mb-6 space-y-4">
-        <div className="flex flex-wrap gap-4">
+      <div className="mb-10 space-y-4">
+        <div className="flex flex-wrap gap-3">
           <input
             type="text"
             placeholder="Search techniques..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="px-4 py-2 border rounded-lg flex-1"
+            className="px-4 py-2.5 border border-gray-200 rounded-lg flex-1 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
           />
         </div>
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap gap-3">
           <select
             value={selectedCompetition || ''}
             onChange={(e) => setSelectedCompetition(e.target.value ? parseInt(e.target.value) : null)}
-            className="px-4 py-2 border rounded-lg"
+            className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
           >
             <option value="">All Competitions</option>
             {competitions?.map((comp) => (
@@ -259,7 +259,7 @@ export default function TechniquesPage() {
           <select
             value={selectedGender}
             onChange={(e) => setSelectedGender(e.target.value)}
-            className="px-4 py-2 border rounded-lg"
+            className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
           >
             <option value="">All Genders</option>
             {availableFilters.genders.map((g) => (
@@ -271,7 +271,7 @@ export default function TechniquesPage() {
           <select
             value={selectedWeightClass}
             onChange={(e) => setSelectedWeightClass(e.target.value)}
-            className="px-4 py-2 border rounded-lg"
+            className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
           >
             <option value="">All Weight Classes</option>
             {availableFilters.weightClasses.map((wc) => (
@@ -283,7 +283,7 @@ export default function TechniquesPage() {
           <select
             value={selectedEventType}
             onChange={(e) => setSelectedEventType(e.target.value)}
-            className="px-4 py-2 border rounded-lg"
+            className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
           >
             <option value="">All Event Types</option>
             {availableFilters.eventTypes.map((et) => (
@@ -295,7 +295,7 @@ export default function TechniquesPage() {
           <select
             value={selectedYear ? String(selectedYear) : ''}
             onChange={(e) => setSelectedYear(e.target.value ? parseInt(e.target.value) : null)}
-            className="px-4 py-2 border rounded-lg"
+            className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
           >
             <option value="">All Years</option>
             {(availableFilters.years || []).map((year) => (
