@@ -434,6 +434,201 @@ const nextConfig: NextConfig = {
 
 ---
 
+## Vercel Deployment Considerations
+
+**Deployment Target:** Vercel Hobby Account
+
+### Vercel-Specific Security Features ✅
+
+1. **Automatic HTTPS:** Vercel provides HTTPS by default - no additional configuration needed
+2. **DDoS Protection:** Built-in DDoS protection at the edge
+3. **Automatic Security Headers:** Some headers are added automatically (varies by plan)
+4. **Edge Network:** Content served from global CDN with security benefits
+
+### Vercel Hobby Account Limitations & Security Impact
+
+#### 1. Function Execution Time Limits ⚠️ HIGH PRIORITY
+
+**Issue:** Serverless functions on Hobby plan have a **10-second execution timeout**
+
+**Impact on Security:**
+- The `/api/crawl` endpoint is particularly vulnerable - it can be abused to exhaust function execution time
+- Long-running operations will be terminated, but can still cause resource exhaustion
+- Multiple concurrent requests can exhaust function concurrency limits
+
+**Recommendation:**
+```typescript
+// Add timeout handling and break work into smaller chunks
+export async function POST(request: Request) {
+  const startTime = Date.now();
+  const MAX_EXECUTION_TIME = 8000; // 8 seconds to allow cleanup
+  
+  // Process in batches with time checks
+  for (const comp of limited) {
+    if (Date.now() - startTime > MAX_EXECUTION_TIME) {
+      // Return partial results or queue for continuation
+      break;
+    }
+    // ... process competition
+  }
+}
+```
+
+**Updated Priority:** **CRITICAL** - Crawl endpoint abuse can exhaust Vercel function limits
+
+---
+
+#### 2. Request Body Size Limits ⚠️ MEDIUM
+
+**Issue:** Vercel serverless functions have a **4.5MB request body limit** (Hobby plan)
+
+**Impact:**
+- Large POST requests to `/api/crawl` will be rejected
+- This actually provides some protection, but should be documented
+
+**Recommendation:**
+- Add explicit validation for request body size
+- Document limits in API documentation
+- Consider breaking large operations into smaller requests
+
+**Updated Priority:** Medium - Add explicit validation
+
+---
+
+#### 3. Environment Variables Management ⚠️ MEDIUM
+
+**Issue:** Vercel handles environment variables differently than local development
+
+**Impact:**
+- Need to configure secrets in Vercel dashboard
+- `NEXT_PUBLIC_*` variables are exposed to client-side
+- Regular environment variables are server-side only
+
+**Recommendation:**
+- Use Vercel dashboard for sensitive variables (CRAWL_API_KEY, etc.)
+- Never use `NEXT_PUBLIC_` prefix for secrets
+- Document required environment variables in README
+
+**Updated Priority:** Medium - Ensure proper secret management
+
+---
+
+#### 4. Rate Limiting & Function Concurrency ⚠️ HIGH
+
+**Issue:** Vercel Hobby plan has function concurrency limits
+
+**Impact:**
+- No built-in rate limiting per endpoint
+- Abuse can exhaust function concurrency
+- Can cause legitimate users to experience timeouts
+
+**Recommendation:**
+- Implement application-level rate limiting (critical for crawl endpoints)
+- Consider using Vercel Edge Middleware for rate limiting
+- Monitor function execution metrics in Vercel dashboard
+
+**Updated Priority:** **HIGH** - Essential for Vercel deployment
+
+---
+
+#### 5. File System Limitations ⚠️ MEDIUM
+
+**Issue:** Vercel serverless functions have **read-only file system** (except `/tmp`)
+
+**Impact:**
+- The current `lib/storage.ts` writes to `data/` directory - **this will fail on Vercel**
+- JSON files cannot be written to the file system in production
+
+**Recommendation:**
+```typescript
+// Option 1: Use Vercel KV or external database
+import { kv } from '@vercel/kv';
+
+// Option 2: Use environment variables for small configs
+// Option 3: Use external storage (S3, Supabase, etc.)
+```
+
+**Updated Priority:** **CRITICAL** - Current storage implementation won't work on Vercel
+
+**Note:** This is a **blocking issue** - the application needs storage refactoring before Vercel deployment.
+
+---
+
+#### 6. Cold Starts & Security ⚠️ LOW
+
+**Issue:** Serverless functions have cold start delays
+
+**Impact:**
+- Not directly a security issue, but can affect timeout-based attacks
+- First request after inactivity may be slower
+
+**Recommendation:**
+- Monitor cold start times
+- Consider keeping functions warm for critical endpoints
+
+**Updated Priority:** Low - Performance consideration
+
+---
+
+### Vercel-Specific Security Recommendations
+
+1. **Use Vercel Edge Middleware for Rate Limiting:**
+   ```typescript
+   // middleware.ts
+   import { NextResponse } from 'next/server';
+   import type { NextRequest } from 'next/server';
+   
+   export function middleware(request: NextRequest) {
+     // Implement rate limiting logic
+     // Check IP-based limits
+     return NextResponse.next();
+   }
+   ```
+
+2. **Configure Vercel Environment Variables:**
+   - Set `CRAWL_API_KEY` in Vercel dashboard (not in code)
+   - Use Vercel's secret management
+   - Never commit `.env` files
+
+3. **Enable Vercel Analytics:**
+   - Monitor function execution times
+   - Track error rates
+   - Identify abuse patterns
+
+4. **Use Vercel KV or External Database:**
+   - Replace file-based storage with Vercel KV or external database
+   - Required for production deployment
+
+5. **Configure Vercel Security Headers:**
+   - Use `vercel.json` or `next.config.ts` for custom headers
+   - Vercel adds some headers automatically, but custom CSP may be needed
+
+---
+
+### Updated Priority List for Vercel Deployment
+
+#### **BLOCKING ISSUES** (Must fix before deployment):
+1. ⛔ **Storage Implementation** - File system writes won't work on Vercel
+2. ⛔ **Crawl Endpoint Authentication** - Critical for preventing abuse
+3. ⛔ **SSRF Fix** - Security vulnerability
+
+#### **HIGH PRIORITY** (Fix before production):
+4. ⚠️ **Rate Limiting** - Essential for Vercel function limits
+5. ⚠️ **Input Validation** - Prevent crashes and abuse
+6. ⚠️ **Error Sanitization** - Prevent information disclosure
+
+#### **MEDIUM PRIORITY** (Can fix post-deployment):
+7. ⚠️ **Security Headers** - Some provided by Vercel, customize as needed
+8. ⚠️ **CORS Configuration** - Configure explicitly
+9. ⚠️ **Request Size Validation** - Document and validate limits
+
+#### **LOW PRIORITY** (Nice to have):
+10. ⚠️ **Path Validation** - Less critical with read-only filesystem
+11. ⚠️ **Test Endpoint Removal** - Remove or protect
+12. ⚠️ **Dependency Scanning** - Set up automated scanning
+
+---
+
 ## Conclusion
 
 The application has several security vulnerabilities that should be addressed before production deployment. The most critical issues are the unprotected crawl endpoints and SSRF vulnerability. Implementing the recommended fixes will significantly improve the security posture of the application.
