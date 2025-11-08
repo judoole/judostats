@@ -54,3 +54,6 @@ next-env.d.ts
 *~
 .DS_Store
 Thumbs.db
+
+# IDE/Editor files
+.vscode/settings.json
