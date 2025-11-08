@@ -171,9 +171,6 @@ export default function JudokaPage() {
                             <span className="text-gray-600">
                               %: <span className="font-semibold">{waza.percentage}%</span>
                             </span>
-                            <span className="text-gray-600">
-                              Avg Score: <span className="font-semibold">{waza.avgScore.toFixed(1)}</span>
-                            </span>
                           </div>
                           {waza.matches && waza.matches.length > 0 && (
                             <div className="mt-3 space-y-2">
@@ -218,14 +215,6 @@ export default function JudokaPage() {
                               Yuko: {waza.yuko}
                             </span>
                           )}
-                        </div>
-                      </div>
-                      <div className="mt-2">
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-blue-600 h-2 rounded-full transition-all"
-                            style={{ width: `${waza.percentage}%` }}
-                          />
                         </div>
                       </div>
                     </div>
