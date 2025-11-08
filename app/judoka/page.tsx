@@ -18,6 +18,7 @@ interface WazaBreakdown {
   ippon: number;
   wazaAri: number;
   yuko: number;
+  matches?: string[];
 }
 
 interface JudokaStats {
@@ -167,6 +168,22 @@ export default function JudokaPage() {
                               Avg Score: <span className="font-semibold">{waza.avgScore.toFixed(1)}</span>
                             </span>
                           </div>
+                          {waza.matches && waza.matches.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {waza.matches.map((matchCode, idx) => (
+                                <a
+                                  key={idx}
+                                  href={`https://judobase.ijf.org/#/competition/contest/${matchCode}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium"
+                                >
+                                  <span>🎥</span>
+                                  <span>Watch Video {idx + 1}</span>
+                                </a>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="flex gap-2 text-xs">
                           {waza.ippon > 0 && (

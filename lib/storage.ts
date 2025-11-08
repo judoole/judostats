@@ -440,19 +440,24 @@ export class JsonStorage {
     const totalTechniques = filteredTechniques.length;
     
     // Aggregate waza statistics
-    const wazaStats: Record<string, { count: number; totalScore: number; ippon: number; wazaAri: number; yuko: number }> = {};
+    const wazaStats: Record<string, { count: number; totalScore: number; ippon: number; wazaAri: number; yuko: number; matches: Set<string> }> = {};
     
     filteredTechniques.forEach(tech => {
       const wazaName = tech.techniqueName || tech.technique_name || 'Unknown';
       const scoreGroup = tech.score_group || tech.scoreGroup || 'Unknown';
       const score = tech.score || 0;
+      const contestCode = tech.matchContestCode || tech.contestCode;
       
       if (!wazaStats[wazaName]) {
-        wazaStats[wazaName] = { count: 0, totalScore: 0, ippon: 0, wazaAri: 0, yuko: 0 };
+        wazaStats[wazaName] = { count: 0, totalScore: 0, ippon: 0, wazaAri: 0, yuko: 0, matches: new Set() };
       }
       
       wazaStats[wazaName].count++;
       wazaStats[wazaName].totalScore += score;
+      
+      if (contestCode) {
+        wazaStats[wazaName].matches.add(contestCode);
+      }
       
       if (scoreGroup === 'Ippon') wazaStats[wazaName].ippon++;
       else if (scoreGroup === 'Waza-ari') wazaStats[wazaName].wazaAri++;
@@ -468,6 +473,7 @@ export class JsonStorage {
         ippon: data.ippon,
         wazaAri: data.wazaAri,
         yuko: data.yuko,
+        matches: Array.from(data.matches).slice(0, 5), // Limit to first 5 matches
       }))
       .sort((a, b) => b.count - a.count);
     
