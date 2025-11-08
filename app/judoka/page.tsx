@@ -10,6 +10,13 @@ interface JudokaListItem {
   totalTechniques: number;
 }
 
+interface MatchInfo {
+  contestCode: string;
+  opponent?: string;
+  competitionName?: string;
+  year?: number;
+}
+
 interface WazaBreakdown {
   name: string;
   count: number;
@@ -18,7 +25,7 @@ interface WazaBreakdown {
   ippon: number;
   wazaAri: number;
   yuko: number;
-  matches?: string[];
+  matches?: MatchInfo[];
 }
 
 interface JudokaStats {
@@ -169,17 +176,27 @@ export default function JudokaPage() {
                             </span>
                           </div>
                           {waza.matches && waza.matches.length > 0 && (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {waza.matches.map((matchCode, idx) => (
+                            <div className="mt-3 space-y-2">
+                              {waza.matches.map((match, idx) => (
                                 <a
                                   key={idx}
-                                  href={`https://judobase.ijf.org/#/competition/contest/${matchCode}`}
+                                  href={`https://judobase.ijf.org/#/competition/contest/${match.contestCode}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium"
+                                  className="block p-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-colors"
                                 >
-                                  <span>🎥</span>
-                                  <span>Watch Video {idx + 1}</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-lg">🎥</span>
+                                    <div className="flex-1">
+                                      <div className="font-semibold text-blue-700">
+                                        {match.opponent ? `vs ${match.opponent}` : 'Watch Match'}
+                                      </div>
+                                      <div className="text-xs text-gray-600 mt-1">
+                                        {match.competitionName}
+                                        {match.year && ` (${match.year})`}
+                                      </div>
+                                    </div>
+                                  </div>
                                 </a>
                               ))}
                             </div>

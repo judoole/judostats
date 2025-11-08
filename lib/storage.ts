@@ -439,24 +439,52 @@ export class JsonStorage {
     const name = filteredTechniques[0].competitor_name || filteredTechniques[0].competitorName || 'Unknown';
     const totalTechniques = filteredTechniques.length;
     
+    // Build lookup maps for competitions and matches
+    const competitionMap = new Map<number, { name: string; year?: number }>();
+    this.competitions.forEach(c => {
+      if (c.id) {
+        competitionMap.set(c.id, { name: c.name, year: c.year });
+      }
+    });
+    
+    const matchMap = new Map<string, { opponent?: string; competitionId?: number }>();
+    this.competitions.forEach(comp => {
+      comp.categories?.forEach(cat => {
+        cat.matches?.forEach(match => {
+          if (match.contestCode && match.competitors) {
+            const opponent = match.competitors.find(c => (c.competitorId?.toString() || '') !== judokaId)?.name;
+            matchMap.set(match.contestCode, { opponent, competitionId: comp.id });
+          }
+        });
+      });
+    });
+    
     // Aggregate waza statistics
-    const wazaStats: Record<string, { count: number; totalScore: number; ippon: number; wazaAri: number; yuko: number; matches: Set<string> }> = {};
+    const wazaStats: Record<string, { count: number; totalScore: number; ippon: number; wazaAri: number; yuko: number; matches: Map<string, { contestCode: string; opponent?: string; competitionName?: string; year?: number }> }> = {};
     
     filteredTechniques.forEach(tech => {
       const wazaName = tech.techniqueName || tech.technique_name || 'Unknown';
       const scoreGroup = tech.score_group || tech.scoreGroup || 'Unknown';
       const score = tech.score || 0;
       const contestCode = tech.matchContestCode || tech.contestCode;
+      const competitionId = tech.competitionId;
       
       if (!wazaStats[wazaName]) {
-        wazaStats[wazaName] = { count: 0, totalScore: 0, ippon: 0, wazaAri: 0, yuko: 0, matches: new Set() };
+        wazaStats[wazaName] = { count: 0, totalScore: 0, ippon: 0, wazaAri: 0, yuko: 0, matches: new Map() };
       }
       
       wazaStats[wazaName].count++;
       wazaStats[wazaName].totalScore += score;
       
-      if (contestCode) {
-        wazaStats[wazaName].matches.add(contestCode);
+      if (contestCode && !wazaStats[wazaName].matches.has(contestCode)) {
+        const matchInfo = matchMap.get(contestCode);
+        const compInfo = competitionId ? competitionMap.get(competitionId) : undefined;
+        wazaStats[wazaName].matches.set(contestCode, {
+          contestCode,
+          opponent: matchInfo?.opponent,
+          competitionName: compInfo?.name || tech.competitionName,
+          year: compInfo?.year,
+        });
       }
       
       if (scoreGroup === 'Ippon') wazaStats[wazaName].ippon++;
@@ -473,7 +501,7 @@ export class JsonStorage {
         ippon: data.ippon,
         wazaAri: data.wazaAri,
         yuko: data.yuko,
-        matches: Array.from(data.matches).slice(0, 5), // Limit to first 5 matches
+        matches: Array.from(data.matches.values()).slice(0, 5), // Limit to first 5 matches
       }))
       .sort((a, b) => b.count - a.count);
     
