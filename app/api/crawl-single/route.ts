@@ -6,6 +6,14 @@ const storage = new JsonStorage();
 const client = new IJFClient();
 
 export async function POST(request: Request) {
+  // Disable crawling on Vercel - only allow local development
+  if (process.env.VERCEL) {
+    return NextResponse.json(
+      { error: 'Crawling is disabled on Vercel. Use local development environment.' },
+      { status: 403 }
+    );
+  }
+
   try {
     const { competitionId } = await request.json().catch(() => ({}));
     

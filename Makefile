@@ -1,4 +1,4 @@
-.PHONY: help install dev build start lint test clean kill crawl crawl-single
+.PHONY: help install dev build start lint test clean kill crawl crawl-single deploy
 
 # Default target
 help:
@@ -19,9 +19,13 @@ help:
 	@echo "  make crawl-2020    - Crawl 2020+ competitions (limit 100)"
 	@echo "  make crawl-single  - Crawl single competition (requires COMP_ID)"
 	@echo ""
+	@echo "Deployment:"
+	@echo "  make deploy        - Deploy to Vercel (includes data files)"
+	@echo ""
 	@echo "Examples:"
 	@echo "  make crawl-single COMP_ID=3081"
 	@echo "  make crawl YEAR=2024 LIMIT=20"
+	@echo "  make deploy"
 
 # Install dependencies
 install:

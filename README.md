@@ -180,7 +180,45 @@ npm start
 
 ## Deployment
 
-This application can be deployed to Vercel with zero configuration - just push to GitHub and connect your repository. The application is also compatible with other Next.js hosting platforms.
+### Deploying to Vercel
+
+The application can be deployed to Vercel. Since data files are large and gitignored, they need to be included during deployment.
+
+#### Option 1: Using the deployment script (Recommended)
+
+```bash
+# 1. Crawl data locally first
+make crawl
+
+# 2. Deploy to Vercel (includes data files)
+make deploy
+```
+
+The deployment script uses Vercel CLI to deploy and automatically includes the `data/` directory.
+
+#### Option 2: Manual deployment with Vercel CLI
+
+```bash
+# Install Vercel CLI globally (if not already installed)
+npm i -g vercel
+
+# Deploy to production
+vercel --prod
+```
+
+#### Option 3: GitHub integration
+
+If you prefer automatic deployments from GitHub:
+
+1. Connect your repository to Vercel
+2. Before pushing, ensure data files are in the `data/` directory
+3. Temporarily remove `/data` from `.gitignore` for the commit
+4. Push to GitHub (Vercel will deploy automatically)
+5. Re-add `/data` to `.gitignore` after deployment
+
+**Note:** Data files are gitignored to keep the repository size manageable. They are included during deployment using the Vercel CLI.
+
+The application is also compatible with other Next.js hosting platforms.
 
 ## License
 

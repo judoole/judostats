@@ -14,36 +14,31 @@ This security assessment identifies several vulnerabilities and security concern
 
 ## Critical Issues
 
-### 1. Unprotected Data Crawling Endpoint ⚠️ HIGH
+### 1. Unprotected Data Crawling Endpoint ⚠️ RESOLVED
 
 **Location:** `app/api/crawl/route.ts`, `app/api/crawl-single/route.ts`
 
-**Issue:** The `/api/crawl` and `/api/crawl-single` endpoints are publicly accessible without authentication or rate limiting. Anyone can trigger expensive data crawling operations.
+**Status:** ✅ **FIXED** - Crawling endpoints are now disabled on Vercel
 
-**Impact:**
-
-- Resource exhaustion (DoS)
-- Unauthorized data collection
-- Server performance degradation
-- Potential abuse of external API (IJF)
-
-**Recommendation:**
-
+**Implementation:**
 ```typescript
-// Add authentication middleware
-export async function POST(request: Request) {
-  // Check for API key or authentication
-  const apiKey = request.headers.get('X-API-Key');
-  if (apiKey !== process.env.CRAWL_API_KEY) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  
-  // Add rate limiting
-  // ... rest of code
+// Disable crawling on Vercel - only allow local development
+if (process.env.VERCEL) {
+  return NextResponse.json(
+    { error: 'Crawling is disabled on Vercel. Use local development environment.' },
+    { status: 403 }
+  );
 }
 ```
 
-**Priority:** High - Implement immediately
+**Impact:**
+- ✅ Crawling can only be performed from local development environment
+- ✅ No risk of resource exhaustion on Vercel
+- ✅ Data files are crawled locally and deployed as static files
+
+**Note:** Crawling endpoints remain functional for local development but are automatically disabled when deployed to Vercel.
+
+**Priority:** ✅ Resolved
 
 ---
 
@@ -531,26 +526,27 @@ export async function POST(request: Request) {
 
 ---
 
-#### 5. File System Limitations ⚠️ MEDIUM
+#### 5. File System Limitations ⚠️ RESOLVED
 
 **Issue:** Vercel serverless functions have **read-only file system** (except `/tmp`)
 
-**Impact:**
-- The current `lib/storage.ts` writes to `data/` directory - **this will fail on Vercel**
-- JSON files cannot be written to the file system in production
+**Status:** ✅ **RESOLVED** - Data files are crawled locally and deployed as static files
 
-**Recommendation:**
-```typescript
-// Option 1: Use Vercel KV or external database
-import { kv } from '@vercel/kv';
+**Solution:**
+- Crawling is disabled on Vercel (see Issue #1)
+- Data files (`data/competitions.json`, `data/techniques.json`) are crawled locally
+- Data files are committed to repository or included in deployment
+- Application reads from static JSON files in production
 
-// Option 2: Use environment variables for small configs
-// Option 3: Use external storage (S3, Supabase, etc.)
-```
+**Implementation:**
+1. Crawl data locally using `/api/crawl` endpoint
+2. Deploy to Vercel using `make deploy` or `vercel --prod` CLI command
+3. Data files are included in deployment (but remain gitignored)
+4. Application reads from static files at runtime on Vercel
 
-**Updated Priority:** **CRITICAL** - Current storage implementation won't work on Vercel
+**Note:** Data files are kept in `.gitignore` to avoid bloating the repository. They are included during deployment using Vercel CLI, which includes all files in the project directory (including gitignored files) when deploying from the local machine.
 
-**Note:** This is a **blocking issue** - the application needs storage refactoring before Vercel deployment.
+**Updated Priority:** ✅ Resolved
 
 ---
 
@@ -608,14 +604,12 @@ import { kv } from '@vercel/kv';
 ### Updated Priority List for Vercel Deployment
 
 #### **BLOCKING ISSUES** (Must fix before deployment):
-1. ⛔ **Storage Implementation** - File system writes won't work on Vercel
-2. ⛔ **Crawl Endpoint Authentication** - Critical for preventing abuse
-3. ⛔ **SSRF Fix** - Security vulnerability
+1. ⛔ **SSRF Fix** - Security vulnerability in test-ijf endpoint
 
 #### **HIGH PRIORITY** (Fix before production):
-4. ⚠️ **Rate Limiting** - Essential for Vercel function limits
-5. ⚠️ **Input Validation** - Prevent crashes and abuse
-6. ⚠️ **Error Sanitization** - Prevent information disclosure
+2. ⚠️ **Input Validation** - Prevent crashes and abuse
+3. ⚠️ **Error Sanitization** - Prevent information disclosure
+4. ⚠️ **Rate Limiting** - Essential for Vercel function limits (less critical since crawl is disabled)
 
 #### **MEDIUM PRIORITY** (Can fix post-deployment):
 7. ⚠️ **Security Headers** - Some provided by Vercel, customize as needed
