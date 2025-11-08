@@ -184,39 +184,38 @@ npm start
 
 The application can be deployed to Vercel. Since data files are large and gitignored, they need to be included during deployment.
 
-#### Option 1: Using the deployment script (Recommended)
+#### Quick Start
 
 ```bash
-# 1. Crawl data locally first
+# 1. Generate data files locally
 make crawl
 
 # 2. Deploy to Vercel (includes data files)
 make deploy
 ```
 
-The deployment script uses Vercel CLI to deploy and automatically includes the `data/` directory.
+#### Detailed Instructions
 
-#### Option 2: Manual deployment with Vercel CLI
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete deployment instructions, including:
+- Pre-deployment checklist
+- Multiple deployment options
+- Environment variable configuration
+- Troubleshooting guide
+- Post-deployment verification
 
-```bash
-# Install Vercel CLI globally (if not already installed)
-npm i -g vercel
+#### Environment Variables
 
-# Deploy to production
-vercel --prod
-```
+Configure these in the Vercel dashboard:
 
-#### Option 3: GitHub integration
+- `ALLOWED_ORIGIN` (optional): CORS allowed origin (defaults to `*`)
+- `NEXT_PUBLIC_GITHUB_URL` (optional): GitHub repository URL
 
-If you prefer automatic deployments from GitHub:
+#### Important Notes
 
-1. Connect your repository to Vercel
-2. Before pushing, ensure data files are in the `data/` directory
-3. Temporarily remove `/data` from `.gitignore` for the commit
-4. Push to GitHub (Vercel will deploy automatically)
-5. Re-add `/data` to `.gitignore` after deployment
-
-**Note:** Data files are gitignored to keep the repository size manageable. They are included during deployment using the Vercel CLI.
+- Data files are gitignored but included during CLI deployment
+- Crawl endpoints are automatically disabled on Vercel
+- Security headers are configured automatically
+- See `DEPLOYMENT.md` for full details
 
 The application is also compatible with other Next.js hosting platforms.
 

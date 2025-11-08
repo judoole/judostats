@@ -83,7 +83,7 @@ export default function TechniqueDetailPage() {
             className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
           >
             <option value="">All Genders</option>
-            {availableFilters.genders.map((g) => (
+            {availableFilters.genders.map((g: string) => (
               <option key={g} value={g}>
                 {g === 'm' ? 'Male' : g === 'f' ? 'Female' : g}
               </option>
@@ -95,7 +95,7 @@ export default function TechniqueDetailPage() {
             className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
           >
             <option value="">All Weight Classes</option>
-            {availableFilters.weightClasses.map((wc) => (
+            {availableFilters.weightClasses.map((wc: string) => (
               <option key={wc} value={wc}>
                 {wc}
               </option>

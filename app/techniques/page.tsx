@@ -209,7 +209,7 @@ export default function TechniquesPage() {
         yuko: tech.yuko,
         avgScore: tech.avgScore,
       }))
-      .filter((tech) => 
+      .filter((tech: AggregatedTechnique) => 
         !searchTerm || tech.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
   }
@@ -262,7 +262,7 @@ export default function TechniquesPage() {
             className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
           >
             <option value="">All Genders</option>
-            {availableFilters.genders.map((g) => (
+            {availableFilters.genders.map((g: string) => (
               <option key={g} value={g}>
                 {g === 'm' ? 'Male' : g === 'f' ? 'Female' : g}
               </option>
@@ -274,7 +274,7 @@ export default function TechniquesPage() {
             className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
           >
             <option value="">All Weight Classes</option>
-            {availableFilters.weightClasses.map((wc) => (
+            {availableFilters.weightClasses.map((wc: string) => (
               <option key={wc} value={wc}>
                 {wc}
               </option>
@@ -286,7 +286,7 @@ export default function TechniquesPage() {
             className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
           >
             <option value="">All Event Types</option>
-            {availableFilters.eventTypes.map((et) => (
+            {availableFilters.eventTypes.map((et: string) => (
               <option key={et} value={et}>
                 {et}
               </option>
@@ -298,7 +298,7 @@ export default function TechniquesPage() {
             className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
           >
             <option value="">All Years</option>
-            {(availableFilters.years || []).map((year) => (
+            {(availableFilters.years || []).map((year: number) => (
               <option key={year} value={String(year)}>
                 {year}
               </option>

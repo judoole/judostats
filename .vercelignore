@@ -1,0 +1,40 @@
+# Files to exclude from Vercel deployment
+# Note: data/ files are included via CLI deployment
+
+# Development files
+.vscode/
+*.log
+*.log.*
+
+# Test files
+coverage/
+tests/
+__tests__/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Examples
+examples/
+
+# Build artifacts (will be regenerated)
+.next/
+out/
+build/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+*.swp
+*.swo
+*~
+

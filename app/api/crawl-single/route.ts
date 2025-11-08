@@ -35,8 +35,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Competition not found' }, { status: 404 });
     }
 
-    const compId = parseInt(comp.id_competition || comp.id);
-    const compName = comp.name || comp.nm || 'Unknown';
+    const compAny = comp as any;
+    const compId = parseInt(compAny.id_competition || compAny.id || '0');
+    const compName = compAny.name || compAny.nm || 'Unknown';
     
     console.log(`Processing: ${compName} (ID: ${compId})`);
 
@@ -52,10 +53,10 @@ export async function POST(request: Request) {
       id: compId,
       competitionId: compId,
       name: compName,
-      date: comp.date_to || comp.dt_end || '',
-      location: comp.city || comp.loc || '',
-      eventType: comp.ages?.[0] || '',
-      year: parseInt(comp.comp_year || comp.year || '0'),
+      date: compAny.date_to || compAny.dt_end || '',
+      location: compAny.city || compAny.loc || '',
+      eventType: compAny.ages?.[0] || '',
+      year: parseInt(compAny.comp_year || compAny.year || '0'),
       categories: [],
     };
 
@@ -85,7 +86,7 @@ export async function POST(request: Request) {
           const sampleDetails = await client.getMatchDetails(contestCode);
           console.log(`Sample match has events: ${!!(sampleDetails?.events)}`);
           console.log(`Sample match events count: ${sampleDetails?.events?.length || 0}`);
-          if (sampleDetails?.events?.length > 0) {
+          if (sampleDetails?.events && sampleDetails.events.length > 0) {
             console.log(`First event type: ${sampleDetails.events[0].id_contest_event_type}`);
             console.log(`First event tags:`, sampleDetails.events[0].tags?.length || 0);
           }
@@ -157,7 +158,7 @@ export async function POST(request: Request) {
               competitionName: compName,
               weightClass: cat.nm,
               gender: cat.gender,
-              eventType: comp.ages?.[0] || '',
+              eventType: compAny.ages?.[0] || '',
             });
 
             await storage.addTechnique({
@@ -167,7 +168,7 @@ export async function POST(request: Request) {
               competitionName: compName,
               weightClass: cat.nm,
               gender: cat.gender,
-              eventType: comp.ages?.[0] || '',
+              eventType: compAny.ages?.[0] || '',
             });
           }
 
