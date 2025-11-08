@@ -2,7 +2,7 @@
 
 # Default target
 help:
-	@echo "Judo Top Waza - Available commands:"
+	@echo "Judo Stats - Available commands:"
 	@echo ""
 	@echo "  make install       - Install dependencies"
 	@echo "  make dev           - Start development server"

@@ -1,4 +1,4 @@
-# Judo Top Waza
+# Judo Stats
 
 This is a project to collect and display data of popular techniques from judobase.ijf.org.
 

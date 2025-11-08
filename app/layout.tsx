@@ -7,7 +7,7 @@ import Link from "next/link";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Judo Top Waza",
+  title: "Judo Stats",
   description: "Judo competition technique data from IJF",
 };
 
@@ -29,7 +29,7 @@ export default function RootLayout({
               </div>
               <div className="flex items-center space-x-1">
                 <Link
-                  href="/"
+                  href="/dashboard"
                   className="text-gray-200 hover:text-white hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                 >
                   Dashboard
