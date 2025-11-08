@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 
@@ -16,6 +16,7 @@ interface MatchInfo {
   opponentCountry?: string;
   competitionName?: string;
   year?: number;
+  scoreGroup?: string;
 }
 
 interface WazaBreakdown {
@@ -40,6 +41,17 @@ export default function JudokaPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedJudoka, setSelectedJudoka] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Check for judokaId in URL params
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const judokaIdFromUrl = searchParams.get('id');
+      if (judokaIdFromUrl && !selectedJudoka) {
+        setSelectedJudoka(judokaIdFromUrl);
+      }
+    }
+  }, [selectedJudoka]);
 
   const { data: searchData } = useQuery({
     queryKey: ['judoka-search', searchQuery],
@@ -71,6 +83,12 @@ export default function JudokaPage() {
 
   const handleSelectJudoka = (judokaId: string) => {
     setSelectedJudoka(judokaId);
+    // Update URL to reflect selected judoka
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('id', judokaId);
+      window.history.pushState({}, '', url.toString());
+    }
   };
 
   const clearSelection = () => {
@@ -150,7 +168,7 @@ export default function JudokaPage() {
               <div className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-xl shadow-md border border-gray-100">
                 <h2 className="text-3xl font-bold mb-2">{judokaStats.stats.name}</h2>
                 <p className="text-gray-600">
-                  Total waza performed: <span className="font-bold text-blue-600">{judokaStats.stats.totalTechniques}</span>
+                  Total scores collected: <span className="font-bold text-blue-600">{judokaStats.stats.totalTechniques}</span>
                 </p>
               </div>
 
@@ -195,6 +213,11 @@ export default function JudokaPage() {
                                             )}
                                           </>
                                         ) : 'Watch Match'}
+                                        {match.scoreGroup && (
+                                          <span className="ml-2 px-2 py-0.5 text-xs font-semibold rounded bg-blue-100 text-blue-800">
+                                            {match.scoreGroup}
+                                          </span>
+                                        )}
                                       </div>
                                       <div className="text-xs text-gray-600 mt-1">
                                         {match.competitionName}

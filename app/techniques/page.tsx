@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
+import Link from 'next/link';
 
 interface Match {
   matchUrl: string;
@@ -40,7 +41,7 @@ function TechniqueCard({
       if (filters.competitionId) filterParams.append('competitionId', filters.competitionId.toString());
 
       const { data } = await axios.get(`/api/techniques/${encodeURIComponent(tech.name)}?${filterParams.toString()}`);
-      setMatches(data);
+      setMatches(data.matches || data);
       setShowMatches(true);
     } catch (error) {
       console.error('Error loading matches:', error);
@@ -51,7 +52,9 @@ function TechniqueCard({
 
   return (
     <div className="bg-white p-6 rounded-lg shadow">
-      <h3 className="text-xl font-bold mb-4">{tech.name}</h3>
+      <Link href={`/techniques/${encodeURIComponent(tech.name)}`}>
+        <h3 className="text-xl font-bold mb-4 hover:text-blue-600 cursor-pointer transition-colors">{tech.name}</h3>
+      </Link>
       
       <div className="space-y-2">
         <div className="flex justify-between items-center">
