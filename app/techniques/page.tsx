@@ -64,21 +64,21 @@ function TechniqueCard({
         
         {tech.ippon > 0 && (
           <div className="flex justify-between items-center py-2">
-            <span className="text-red-600 text-sm">Ippon</span>
+            <span className="text-gray-600 text-sm">Ippon</span>
             <span className="font-medium text-gray-900">{tech.ippon}x</span>
           </div>
         )}
         
         {tech.wazaAri > 0 && (
           <div className="flex justify-between items-center py-2">
-            <span className="text-orange-600 text-sm">Waza-ari</span>
+            <span className="text-gray-600 text-sm">Waza-ari</span>
             <span className="font-medium text-gray-900">{tech.wazaAri}x</span>
           </div>
         )}
         
         {tech.yuko > 0 && (
           <div className="flex justify-between items-center py-2">
-            <span className="text-blue-600 text-sm">Yuko</span>
+            <span className="text-gray-600 text-sm">Yuko</span>
             <span className="font-medium text-gray-900">{tech.yuko}x</span>
           </div>
         )}
