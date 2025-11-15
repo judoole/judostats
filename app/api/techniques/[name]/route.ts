@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { JsonStorage } from '@/lib/storage';
+import { createStorage } from '@/lib/storage';
 
-const storage = new JsonStorage();
+const storage = createStorage();
 
 export async function GET(
   request: Request,

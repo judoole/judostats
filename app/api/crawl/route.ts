@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { JsonStorage } from '@/lib/storage';
+import { createStorage } from '@/lib/storage';
 import { IJFClient } from '@/lib/ijf-client';
 
-const storage = new JsonStorage();
+const storage = createStorage();
 const client = new IJFClient();
 
 export async function POST(request: Request) {
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { limit, minYear, skipExisting, force } = await request.json().catch(() => ({}));
+    const { limit, minYear, skipExisting, force, concurrent = 20 } = await request.json().catch(() => ({}));
 
     await storage.load();
 
@@ -44,142 +44,176 @@ export async function POST(request: Request) {
     }
     
     const limited = limit ? filtered.slice(0, limit) : filtered;
-    console.log(`Processing ${limited.length} competitions`);
+    console.log(`Processing ${limited.length} competitions with ${concurrent} concurrent requests`);
 
-    for (const comp of limited) {
-      const compAny = comp as any;
-      const compId = parseInt(compAny.id_competition || compAny.id);
-      const compName = compAny.name || compAny.nm || 'Unknown';
+    // Process competitions in parallel batches
+    const CONCURRENT_REQUESTS = concurrent;
+    let processed = 0;
+    let added = 0;
+    let errors = 0;
+
+    for (let i = 0; i < limited.length; i += CONCURRENT_REQUESTS) {
+      const batch = limited.slice(i, i + CONCURRENT_REQUESTS);
       
-      console.log(`Processing: ${compName} (ID: ${compId})`);
-
-      // Remove existing techniques for this competition to avoid duplicates
-      await storage.removeTechniquesForCompetition(compId);
-
-      const categories = await client.getCompetitionCategories(compId);
-      if (!categories.length) {
-        console.log(`No categories for competition ${compId}`);
-        continue;
-      }
-
-      const storedComp: any = {
-        id: compId,
-        competitionId: compId,
-        name: compName,
-        date: compAny.date_to || compAny.dt_end || '',
-        location: compAny.city || compAny.loc || '',
-        eventType: compAny.ages?.[0] || '',
-        year: parseInt(compAny.comp_year || compAny.year || '0'),
-        categories: [],
-      };
-
-      for (const cat of categories) {
-        const matches = await client.getMatches(compId, cat.id_weight);
-        const storedCat: any = {
-          id: compId * 1000 + cat.id_weight,
-          competitionId: compId,
-          categoryId: cat.id_weight,
-          weightClass: cat.nm,
-          gender: cat.gender,
-          matches: [],
-        };
-
-        let hasTechniques = false;
-
-        // Sample a few matches to check for techniques
-        for (const match of matches.slice(0, 3)) {
-          const contestCode = match.contest_code_long || match.code;
-          if (!contestCode) continue;
+      const results = await Promise.allSettled(
+        batch.map(async (comp) => {
+          const compAny = comp as any;
+          const compId = parseInt(compAny.id_competition || compAny.id);
+          const compName = compAny.name || compAny.nm || 'Unknown';
           
-          const details = await client.getMatchDetails(contestCode);
-          if (details && client.matchHasTechniques(details)) {
-            hasTechniques = true;
-            break;
+          console.log(`Processing: ${compName} (ID: ${compId})`);
+
+          // Remove existing techniques for this competition to avoid duplicates (without saving)
+          storage.removeTechniquesForCompetitionWithoutSave(compId);
+
+          const categories = await client.getCompetitionCategories(compId);
+          if (!categories.length) {
+            console.log(`No categories for competition ${compId}`);
+            return null;
           }
-        }
 
-        if (hasTechniques) {
-          // Process all matches
-          for (const match of matches) {
-            const contestCode = match.contest_code_long || match.code;
-            if (!contestCode) continue;
-            
-            const details = await client.getMatchDetails(contestCode);
-            if (!details) continue;
+          const storedComp: any = {
+            id: compId,
+            competitionId: compId,
+            name: compName,
+            date: compAny.date_to || compAny.dt_end || '',
+            location: compAny.city || compAny.loc || '',
+            eventType: compAny.ages?.[0] || '',
+            year: parseInt(compAny.comp_year || compAny.year || '0'),
+            categories: [],
+          };
 
-            const techniques = client.extractTechniques(details);
-            if (!techniques.length) continue;
-
-            const storedMatch: any = {
-              id: Date.now() + Math.random(),
-              categoryId: storedCat.id,
-              contestCode: contestCode,
-              matchNumber: match.nm,
-              competitors: [],
-              techniques: [],
+          for (const cat of categories) {
+            const matches = await client.getMatches(compId, cat.id_weight);
+            const storedCat: any = {
+              id: compId * 1000 + cat.id_weight,
+              competitionId: compId,
+              categoryId: cat.id_weight,
+              weightClass: cat.nm,
+              gender: cat.gender,
+              matches: [],
             };
 
-            // Extract competitors
-            if (details.person1) {
-              storedMatch.competitors.push({
-                competitorId: details.person1.id_person,
-                name: details.person1.nm,
-                countryCode: details.person1.cnt,
-                country: details.person1.cntr,
-                isWinner: details.person1.res === 1,
-                score: 0,
-              });
+            let hasTechniques = false;
+
+            // Sample a few matches to check for techniques
+            for (const match of matches.slice(0, 3)) {
+              const contestCode = match.contest_code_long || match.code;
+              if (!contestCode) continue;
+              
+              const details = await client.getMatchDetails(contestCode);
+              if (details && client.matchHasTechniques(details)) {
+                hasTechniques = true;
+                break;
+              }
             }
 
-            if (details.person2) {
-              storedMatch.competitors.push({
-                competitorId: details.person2.id_person,
-                name: details.person2.nm,
-                countryCode: details.person2.cnt,
-                country: details.person2.cntr,
-                isWinner: details.person2.res === 1,
-                score: 0,
-              });
+            if (hasTechniques) {
+              // Process all matches
+              for (const match of matches) {
+                const contestCode = match.contest_code_long || match.code;
+                if (!contestCode) continue;
+                
+                const details = await client.getMatchDetails(contestCode);
+                if (!details) continue;
+
+                const techniques = client.extractTechniques(details);
+                if (!techniques.length) continue;
+
+                const storedMatch: any = {
+                  id: Date.now() + Math.random(),
+                  categoryId: storedCat.id,
+                  contestCode: contestCode,
+                  matchNumber: match.nm,
+                  competitors: [],
+                  techniques: [],
+                };
+
+                // Extract competitors
+                if (details.person1) {
+                  storedMatch.competitors.push({
+                    competitorId: details.person1.id_person,
+                    name: details.person1.nm,
+                    countryCode: details.person1.cnt,
+                    country: details.person1.cntr,
+                    isWinner: details.person1.res === 1,
+                    score: 0,
+                  });
+                }
+
+                if (details.person2) {
+                  storedMatch.competitors.push({
+                    competitorId: details.person2.id_person,
+                    name: details.person2.nm,
+                    countryCode: details.person2.cnt,
+                    country: details.person2.cntr,
+                    isWinner: details.person2.res === 1,
+                    score: 0,
+                  });
+                }
+
+                // Extract techniques
+                for (const tech of techniques) {
+                  storedMatch.techniques.push({
+                    ...tech,
+                    competitionId: compId,
+                    matchContestCode: contestCode,
+                    competitionName: compName,
+                    weightClass: cat.nm,
+                    gender: cat.gender,
+                  });
+
+                  // Add technique without saving (will save in batch)
+                  storage.addTechniqueWithoutSave({
+                    ...tech,
+                    competitionId: compId,
+                    matchContestCode: contestCode,
+                    competitionName: compName,
+                    weightClass: cat.nm,
+                    gender: cat.gender,
+                    eventType: compAny.ages?.[0] || '',
+                  });
+                }
+
+                storedCat.matches.push(storedMatch);
+              }
             }
 
-            // Extract techniques
-            for (const tech of techniques) {
-              storedMatch.techniques.push({
-                ...tech,
-                competitionId: compId,
-                matchContestCode: contestCode,
-                competitionName: compName,
-                weightClass: cat.nm,
-                gender: cat.gender,
-              });
-
-              await storage.addTechnique({
-                ...tech,
-                competitionId: compId,
-                matchContestCode: contestCode,
-                competitionName: compName,
-                weightClass: cat.nm,
-                gender: cat.gender,
-                eventType: compAny.ages?.[0] || '',
-              });
+            if (storedCat.matches.length > 0) {
+              storedComp.categories.push(storedCat);
             }
-
-            storedCat.matches.push(storedMatch);
           }
-        }
 
-        if (storedCat.matches.length > 0) {
-          storedComp.categories.push(storedCat);
+          if (storedComp.categories.length > 0) {
+            // Add competition without saving (will save in batch)
+            storage.addCompetitionWithoutSave(storedComp);
+            console.log(`✓ Added competition: ${compName}`);
+            return storedComp;
+          }
+          
+          return null;
+        })
+      );
+
+      // Process results
+      for (const result of results) {
+        processed++;
+        if (result.status === 'fulfilled' && result.value) {
+          added++;
+        } else if (result.status === 'rejected') {
+          errors++;
+          console.error('Error processing competition:', result.reason);
         }
       }
 
-      if (storedComp.categories.length > 0) {
-        await storage.addCompetition(storedComp);
-        console.log(`✓ Added competition: ${compName}`);
-      }
+      // Save progress periodically
+      await storage.save();
+      console.log(`Progress: ${processed}/${limited.length} processed, ${added} added, ${errors} errors`);
     }
 
-    // Fetch judoka profiles after processing competitions
+    console.log(`✓ Competition crawling completed: ${processed} processed, ${added} added, ${errors} errors`);
+
+    // Fetch judoka profiles after processing competitions (using parallel processing)
     console.log('Collecting unique judoka IDs...');
     const allJudokaIds = storage.getAllUniqueJudokaIds();
     const judokaIdsArray = Array.from(allJudokaIds);
@@ -192,75 +226,90 @@ export async function POST(request: Request) {
 
     console.log(`Fetching profiles for ${judokaIdsToFetch.length} judoka (${judokaIdsArray.length - judokaIdsToFetch.length} already have profiles)`);
 
-    // Fetch profiles with rate limiting
+    // Fetch profiles in parallel batches
     let fetched = 0;
     let skipped = judokaIdsArray.length - judokaIdsToFetch.length;
-    let errors = 0;
+    let profileErrors = 0;
+    const PROFILE_CONCURRENT_REQUESTS = 20;
+    const SAVE_BATCH_SIZE = 50;
 
-    for (let i = 0; i < judokaIdsToFetch.length; i++) {
-      const judokaId = judokaIdsToFetch[i];
+    for (let i = 0; i < judokaIdsToFetch.length; i += PROFILE_CONCURRENT_REQUESTS) {
+      const batch = judokaIdsToFetch.slice(i, i + PROFILE_CONCURRENT_REQUESTS);
       
-      try {
-        const personId = parseInt(judokaId, 10);
-        if (isNaN(personId)) {
-          console.warn(`Invalid judoka ID: ${judokaId}`);
-          errors++;
-          continue;
-        }
+      const results = await Promise.allSettled(
+        batch.map(async (judokaId) => {
+          try {
+            const personId = parseInt(judokaId, 10);
+            if (isNaN(personId)) {
+              throw new Error(`Invalid judoka ID: ${judokaId}`);
+            }
 
-        const competitorInfo = await client.getCompetitorInfo(personId);
-        
-        if (competitorInfo) {
-          // Convert IJF API response to our profile format
-          const profile = {
-            id: judokaId,
-            name: `${competitorInfo.given_name} ${competitorInfo.family_name}`.trim(),
-            height: competitorInfo.height ? parseInt(competitorInfo.height, 10) : undefined,
-            age: competitorInfo.age ? parseInt(competitorInfo.age, 10) : undefined,
-            country: competitorInfo.country || competitorInfo.country_short,
-            lastUpdated: new Date().toISOString(),
-          };
-          
-          // Add to storage in memory (don't save yet)
+            const competitorInfo = await client.getCompetitorInfo(personId);
+            
+            if (!competitorInfo) {
+              throw new Error(`Failed to fetch profile for judoka ${judokaId}`);
+            }
+
+            return {
+              id: judokaId,
+              name: `${competitorInfo.given_name} ${competitorInfo.family_name}`.trim(),
+              height: competitorInfo.height ? parseInt(competitorInfo.height, 10) : undefined,
+              age: competitorInfo.age ? parseInt(competitorInfo.age, 10) : undefined,
+              country: competitorInfo.country || competitorInfo.country_short,
+              lastUpdated: new Date().toISOString(),
+            };
+          } catch (error) {
+            console.error(`Error fetching profile for judoka ${judokaId}:`, error);
+            throw error;
+          }
+        })
+      );
+
+      // Process results
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          const profile = result.value;
           storage.judokaProfiles.set(profile.id, profile);
           fetched++;
-          
-          // Save every 50 profiles to reduce disk I/O
-          if ((i + 1) % 50 === 0 || (i + 1) === judokaIdsToFetch.length) {
-            await storage.save();
-            console.log(`  Progress: ${i + 1}/${judokaIdsToFetch.length} profiles fetched and saved`);
-          } else if ((i + 1) % 10 === 0) {
-            console.log(`  Progress: ${i + 1}/${judokaIdsToFetch.length} profiles fetched`);
-          }
         } else {
-          console.warn(`Failed to fetch profile for judoka ${judokaId}`);
-          errors++;
+          profileErrors++;
         }
-      } catch (error) {
-        console.error(`Error fetching profile for judoka ${judokaId}:`, error);
-        errors++;
+      }
+
+      // Save every SAVE_BATCH_SIZE profiles
+      if (fetched % SAVE_BATCH_SIZE === 0 || (i + batch.length) >= judokaIdsToFetch.length) {
+        await storage.save();
+        console.log(`  Profile progress: ${i + batch.length}/${judokaIdsToFetch.length} processed, ${fetched} fetched, ${profileErrors} errors`);
+      } else if ((i + batch.length) % 10 === 0) {
+        console.log(`  Profile progress: ${i + batch.length}/${judokaIdsToFetch.length} processed`);
       }
     }
     
     // Final save to ensure all profiles are persisted
     await storage.save();
 
-    console.log(`✓ Profile fetching completed: ${fetched} fetched, ${skipped} skipped, ${errors} errors`);
+    console.log(`✓ Profile fetching completed: ${fetched} fetched, ${skipped} skipped, ${profileErrors} errors`);
 
     return NextResponse.json({ 
       success: true, 
       message: 'Crawl completed',
+      competitions: {
+        processed,
+        added,
+        errors,
+      },
       judokaProfiles: {
         total: judokaIdsArray.length,
         fetched,
         skipped,
-        errors,
+        errors: profileErrors,
       },
     });
   } catch (error: any) {
     console.error('Error during crawl:', error);
+    console.error('Error stack:', error?.stack);
     return NextResponse.json(
-      { error: 'An error occurred during crawling' },
+      { error: 'An error occurred during crawling', details: error?.message || String(error) },
       { status: 500 }
     );
   }

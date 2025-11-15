@@ -43,6 +43,7 @@ next-env.d.ts
 # data files
 # Data files are gitignored but copied during Vercel deployment
 /data
+.backup/
 
 # logs
 *.log

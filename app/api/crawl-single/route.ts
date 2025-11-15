@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { JsonStorage } from '@/lib/storage';
+import { createStorage } from '@/lib/storage';
 import { IJFClient } from '@/lib/ijf-client';
 
-const storage = new JsonStorage();
+const storage = createStorage();
 const client = new IJFClient();
 
 export async function POST(request: Request) {
