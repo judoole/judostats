@@ -217,13 +217,13 @@ export default function JudokaPage() {
                 </div>
               </div>
 
-              <div className="bg-white p-8 rounded-lg border border-gray-200">
+              <div className="bg-white p-8 rounded-lg border-2 border-green-200 bg-green-50/30">
                 <h3 className="text-xl font-semibold mb-6 text-gray-900">Waza Performed</h3>
                 <div className="space-y-4">
                   {judokaStats.stats.wazaBreakdown.map((waza: WazaBreakdown, index: number) => (
                     <div
                       key={index}
-                      className="border border-gray-200 rounded-lg p-6 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                      className="border border-green-200 rounded-lg p-6 bg-white hover:bg-green-50/50 hover:border-green-300 transition-colors"
                     >
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex-1">
@@ -302,7 +302,7 @@ export default function JudokaPage() {
               </div>
 
               {judokaStats.techniquesReceived && judokaStats.techniquesReceived.totalTechniques > 0 && (
-                <div className="bg-white p-8 rounded-lg border border-gray-200">
+                <div className="bg-white p-8 rounded-lg border-2 border-amber-200 bg-amber-50/30">
                   <h3 className="text-xl font-semibold mb-6 text-gray-900">Waza Received</h3>
                   <p className="text-sm text-gray-600 mb-4">
                     Techniques and scores this judoka has received from opponents
@@ -311,7 +311,7 @@ export default function JudokaPage() {
                     {judokaStats.techniquesReceived.wazaBreakdown.map((waza: WazaBreakdown, index: number) => (
                       <div
                         key={index}
-                        className="border border-gray-200 rounded-lg p-6 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                        className="border border-amber-200 rounded-lg p-6 bg-white hover:bg-amber-50/50 hover:border-amber-300 transition-colors"
                       >
                         <div className="flex justify-between items-start mb-3">
                           <div className="flex-1">
