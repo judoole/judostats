@@ -444,7 +444,7 @@ export class JsonStorage {
     const eventTypes = new Set(this.techniques.map(t => t.eventType).filter(Boolean));
     const years = Array.from(new Set(this.competitions.map(c => c.year).filter(Boolean))).sort((a, b) => (b || 0) - (a || 0));
     
-    // Get available height ranges from judoka profiles
+    // Get available height ranges from judoka profiles using percentiles
     const heights = new Set<number>();
     this.techniques.forEach(t => {
       const competitorId = (t.competitor_id || t.competitorId || '').toString();
@@ -456,24 +456,24 @@ export class JsonStorage {
       }
     });
     
-    // Create height ranges: 150-160, 160-170, 170-180, 180-190, 190+
+    // Create percentile-based height ranges
     const heightRanges: string[] = [];
     const sortedHeights = Array.from(heights).sort((a, b) => a - b);
     if (sortedHeights.length > 0) {
-      const minHeight = Math.floor(sortedHeights[0] / 10) * 10;
-      const maxHeight = Math.ceil(sortedHeights[sortedHeights.length - 1] / 10) * 10;
+      const len = sortedHeights.length;
+      const p10 = sortedHeights[Math.floor(len * 0.1)];
+      const p25 = sortedHeights[Math.floor(len * 0.25)];
+      const p50 = sortedHeights[Math.floor(len * 0.5)];
+      const p75 = sortedHeights[Math.floor(len * 0.75)];
+      const p90 = sortedHeights[Math.floor(len * 0.9)];
       
-      for (let start = minHeight; start < maxHeight; start += 10) {
-        const end = start + 10;
-        // Check if any heights fall in this range
-        if (sortedHeights.some(h => h >= start && h < end)) {
-          heightRanges.push(`${start}-${end}`);
-        }
-      }
-      // Add 190+ if there are heights >= 190
-      if (sortedHeights.some(h => h >= 190)) {
-        heightRanges.push('190+');
-      }
+      // Create ranges based on percentiles
+      if (p10 !== undefined) heightRanges.push(`<${p10}`);
+      if (p10 !== undefined && p25 !== undefined && p10 !== p25) heightRanges.push(`${p10}-${p25}`);
+      if (p25 !== undefined && p50 !== undefined && p25 !== p50) heightRanges.push(`${p25}-${p50}`);
+      if (p50 !== undefined && p75 !== undefined && p50 !== p75) heightRanges.push(`${p50}-${p75}`);
+      if (p75 !== undefined && p90 !== undefined && p75 !== p90) heightRanges.push(`${p75}-${p90}`);
+      if (p90 !== undefined) heightRanges.push(`>=${p90}`);
     }
     
     return {
@@ -486,12 +486,27 @@ export class JsonStorage {
   }
 
   private heightMatchesRange(height: number, range: string): boolean {
+    // Handle ">=X" format (greater than or equal)
+    if (range.startsWith('>=')) {
+      const min = parseInt(range.replace('>=', ''), 10);
+      return height >= min;
+    }
+    
+    // Handle "<X" format (less than)
+    if (range.startsWith('<')) {
+      const max = parseInt(range.replace('<', ''), 10);
+      return height < max;
+    }
+    
+    // Handle "X+" format (legacy, greater than or equal)
     if (range.endsWith('+')) {
       const min = parseInt(range.replace('+', ''), 10);
       return height >= min;
     }
     
+    // Handle "X-Y" format (range, inclusive start, exclusive end)
     const [min, max] = range.split('-').map(s => parseInt(s, 10));
+    if (isNaN(min) || isNaN(max)) return false;
     return height >= min && height < max;
   }
 

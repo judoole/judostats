@@ -317,7 +317,7 @@ export default function TechniquesPage() {
             <option value="">All Heights</option>
             {(availableFilters.heightRanges || []).map((range: string) => (
               <option key={range} value={range}>
-                {range} cm
+                {range.replace('<', '< ').replace('>=', '≥ ')} cm
               </option>
             ))}
           </select>
