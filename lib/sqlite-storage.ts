@@ -150,6 +150,7 @@ export class SqliteStorage {
     this.db.exec(`CREATE INDEX IF NOT EXISTS idx_techniques_competition_id ON techniques(competition_id)`);
     this.db.exec(`CREATE INDEX IF NOT EXISTS idx_techniques_technique_name ON techniques(technique_name)`);
     this.db.exec(`CREATE INDEX IF NOT EXISTS idx_techniques_competitor_id ON techniques(competitor_id)`);
+    this.db.exec(`CREATE INDEX IF NOT EXISTS idx_techniques_opponent_id ON techniques(opponent_id)`);
     this.db.exec(`CREATE INDEX IF NOT EXISTS idx_competitions_year ON competitions(year)`);
   }
 
@@ -298,37 +299,7 @@ export class SqliteStorage {
     const stmt = this.db.prepare('SELECT * FROM techniques');
     const rows = stmt.all() as any[];
     
-    return rows.map(row => ({
-      competitor_id: row.competitor_id || undefined,
-      competitorId: row.competitor_id || undefined,
-      competitor_name: row.competitor_name || undefined,
-      competitorName: row.competitor_name || undefined,
-      technique_name: row.technique_name,
-      techniqueName: row.technique_name,
-      technique_type: row.technique_type || undefined,
-      techniqueType: row.technique_type || undefined,
-      technique_category: row.technique_category || 'tachi-waza',
-      techniqueCategory: row.technique_category || 'tachi-waza',
-      side: row.side || undefined,
-      score: row.score || undefined,
-      timestamp: row.timestamp || undefined,
-      note: row.note || undefined,
-      competitionId: row.competition_id || undefined,
-      matchContestCode: row.match_contest_code || undefined,
-      contestCode: row.match_contest_code || undefined,
-      competitionName: row.competition_name || undefined,
-      weightClass: row.weight_class || undefined,
-      gender: row.gender || undefined,
-      eventType: row.event_type || undefined,
-      score_group: row.score_group || undefined,
-      scoreGroup: row.score_group || undefined,
-      opponent_id: row.opponent_id || undefined,
-      opponentId: row.opponent_id || undefined,
-      opponent_name: row.opponent_name || undefined,
-      opponentName: row.opponent_name || undefined,
-      opponent_country: row.opponent_country || undefined,
-      opponentCountry: row.opponent_country || undefined,
-    }));
+    return rows.map(row => this.mapRowToTechnique(row));
   }
 
   addTechniqueWithoutSave(technique: any) {
@@ -360,7 +331,7 @@ export class SqliteStorage {
       technique.gender || null,
       technique.eventType || null,
       technique.score_group || technique.scoreGroup || null,
-      technique.opponent_id || technique.opponentId || null,
+      (technique.opponent_id || technique.opponentId) ? String(technique.opponent_id || technique.opponentId) : null,
       technique.opponent_name || technique.opponentName || null,
       technique.opponent_country || technique.opponentCountry || null,
     );
@@ -403,7 +374,7 @@ export class SqliteStorage {
           technique.gender || null,
           technique.eventType || null,
           technique.score_group || technique.scoreGroup || null,
-          technique.opponent_id || technique.opponentId || null,
+          (technique.opponent_id || technique.opponentId) ? String(technique.opponent_id || technique.opponentId) : null,
           technique.opponent_name || technique.opponentName || null,
           technique.opponent_country || technique.opponentCountry || null,
         );
@@ -1018,35 +989,45 @@ export class SqliteStorage {
   }
 
   getJudokaStats(judokaId: string, filters?: any) {
-    const techniques = this.getAllTechniques();
-    const competitions = this.getAllCompetitions();
+    if (!this.db) return null;
     
-    // Filter out walkovers (Fusen-Gachi) from display, but keep in DB
-    let filteredTechniques = techniques.filter(t => {
-      const id = t.competitor_id || t.competitorId || '';
-      const name = (t.techniqueName || t.technique_name || '').toLowerCase();
-      return id === judokaId && name !== 'fusen-gachi' && name !== 'fusen gachi';
-    });
+    // Use SQL WHERE clause to filter in database (much more efficient)
+    let query = `
+      SELECT * FROM techniques 
+      WHERE competitor_id = ? 
+      AND LOWER(technique_name) NOT IN ('fusen-gachi', 'fusen gachi')
+    `;
+    const params: any[] = [String(judokaId)];
     
-    if (filters) {
-      if (filters.gender) {
-        filteredTechniques = filteredTechniques.filter(t => (t.gender || '').toLowerCase() === filters.gender?.toLowerCase());
-      }
-      if (filters.weightClass) {
-        filteredTechniques = filteredTechniques.filter(t => (t.weightClass || '') === filters.weightClass);
-      }
-      if (filters.eventType) {
-        filteredTechniques = filteredTechniques.filter(t => (t.eventType || '').toLowerCase() === filters.eventType?.toLowerCase());
-      }
-      if (filters.competitionId) {
-        filteredTechniques = filteredTechniques.filter(t => t.competitionId === filters.competitionId);
-      }
+    // Add additional filters
+    if (filters?.gender) {
+      query += ' AND LOWER(gender) = ?';
+      params.push(filters.gender.toLowerCase());
     }
+    if (filters?.weightClass) {
+      query += ' AND weight_class = ?';
+      params.push(filters.weightClass);
+    }
+    if (filters?.eventType) {
+      query += ' AND LOWER(event_type) = ?';
+      params.push(filters.eventType.toLowerCase());
+    }
+    if (filters?.competitionId) {
+      query += ' AND competition_id = ?';
+      params.push(filters.competitionId);
+    }
+    
+    const stmt = this.db.prepare(query);
+    const rows = stmt.all(...params) as any[];
+    
+    // Map rows to technique objects
+    const filteredTechniques = rows.map(row => this.mapRowToTechnique(row));
     
     if (filteredTechniques.length === 0) {
       return null;
     }
     
+    const competitions = this.getAllCompetitions();
     const name = filteredTechniques[0].competitor_name || filteredTechniques[0].competitorName || 'Unknown';
     const totalTechniques = filteredTechniques.length;
     
@@ -1130,6 +1111,166 @@ export class SqliteStorage {
       height: profile?.height,
       age: profile?.age,
       country: profile?.country,
+    };
+  }
+
+  private mapRowToTechnique(row: any): any {
+    return {
+      competitor_id: row.competitor_id || undefined,
+      competitorId: row.competitor_id || undefined,
+      competitor_name: row.competitor_name || undefined,
+      competitorName: row.competitor_name || undefined,
+      technique_name: row.technique_name,
+      techniqueName: row.technique_name,
+      technique_type: row.technique_type || undefined,
+      techniqueType: row.technique_type || undefined,
+      technique_category: row.technique_category || 'tachi-waza',
+      techniqueCategory: row.technique_category || 'tachi-waza',
+      side: row.side || undefined,
+      score: row.score || undefined,
+      timestamp: row.timestamp || undefined,
+      note: row.note || undefined,
+      competitionId: row.competition_id || undefined,
+      matchContestCode: row.match_contest_code || undefined,
+      contestCode: row.match_contest_code || undefined,
+      competitionName: row.competition_name || undefined,
+      weightClass: row.weight_class || undefined,
+      gender: row.gender || undefined,
+      eventType: row.event_type || undefined,
+      score_group: row.score_group || undefined,
+      scoreGroup: row.score_group || undefined,
+      opponent_id: row.opponent_id || undefined,
+      opponentId: row.opponent_id || undefined,
+      opponent_name: row.opponent_name || undefined,
+      opponentName: row.opponent_name || undefined,
+      opponent_country: row.opponent_country || undefined,
+      opponentCountry: row.opponent_country || undefined,
+    };
+  }
+
+  getTechniquesReceivedByJudoka(judokaId: string, filters?: any) {
+    if (!this.db) return { totalTechniques: 0, wazaBreakdown: [] };
+    
+    // Use SQL WHERE clause to filter in database (much more efficient)
+    // Handle both string and numeric opponent_id values (SQLite TEXT can match numbers)
+    const judokaIdStr = String(judokaId);
+    let query = `
+      SELECT * FROM techniques 
+      WHERE opponent_id IS NOT NULL 
+      AND opponent_id != ''
+      AND (opponent_id = ? OR CAST(opponent_id AS INTEGER) = ?)
+      AND LOWER(technique_name) NOT IN ('fusen-gachi', 'fusen gachi')
+    `;
+    const params: any[] = [judokaIdStr, parseInt(judokaIdStr, 10)]; // Try both string and number
+    
+    // Add additional filters
+    if (filters?.gender) {
+      query += ' AND LOWER(gender) = ?';
+      params.push(filters.gender.toLowerCase());
+    }
+    if (filters?.weightClass) {
+      query += ' AND weight_class = ?';
+      params.push(filters.weightClass);
+    }
+    if (filters?.eventType) {
+      query += ' AND LOWER(event_type) = ?';
+      params.push(filters.eventType.toLowerCase());
+    }
+    if (filters?.competitionId) {
+      query += ' AND competition_id = ?';
+      params.push(filters.competitionId);
+    }
+    
+    const stmt = this.db.prepare(query);
+    const rows = stmt.all(...params) as any[];
+    
+    // Map rows to technique objects
+    const filteredTechniques = rows.map(row => this.mapRowToTechnique(row));
+    
+    if (filteredTechniques.length === 0) {
+      return {
+        totalTechniques: 0,
+        wazaBreakdown: [],
+      };
+    }
+    
+    const totalTechniques = filteredTechniques.length;
+    
+    // Get competitions for mapping (only load once)
+    const competitions = this.getAllCompetitions();
+    const competitionMap = new Map<number, { name: string; year?: number }>();
+    competitions.forEach(c => {
+      if (c.id) {
+        competitionMap.set(c.id, { name: c.name, year: c.year });
+      }
+    });
+    
+    // Build match map from techniques
+    const matchMap = new Map<string, { competitor?: string; competitorCountry?: string; competitionId?: number }>();
+    filteredTechniques.forEach(tech => {
+      const contestCode = tech.matchContestCode || tech.contestCode;
+      const competitionId = tech.competitionId;
+      
+      if (contestCode && !matchMap.has(contestCode)) {
+        matchMap.set(contestCode, {
+          competitor: tech.competitor_name || tech.competitorName,
+          competitorCountry: tech.competitor_country || tech.competitorCountry,
+          competitionId: competitionId,
+        });
+      }
+    });
+    
+    const wazaStats: Record<string, { count: number; totalScore: number; ippon: number; wazaAri: number; yuko: number; matches: Map<string, any> }> = {};
+    
+    filteredTechniques.forEach(tech => {
+      const wazaName = tech.techniqueName || tech.technique_name || 'Unknown';
+      const scoreGroup = tech.score_group || tech.scoreGroup || 'Unknown';
+      const score = tech.score || 0;
+      const contestCode = tech.matchContestCode || tech.contestCode;
+      const competitionId = tech.competitionId;
+      
+      if (!wazaStats[wazaName]) {
+        wazaStats[wazaName] = { count: 0, totalScore: 0, ippon: 0, wazaAri: 0, yuko: 0, matches: new Map() };
+      }
+      
+      wazaStats[wazaName].count++;
+      wazaStats[wazaName].totalScore += score;
+      
+      if (contestCode && !wazaStats[wazaName].matches.has(contestCode)) {
+        const matchInfo = matchMap.get(contestCode);
+        const compInfo = competitionId ? competitionMap.get(competitionId) : undefined;
+        wazaStats[wazaName].matches.set(contestCode, {
+          contestCode,
+          opponent: matchInfo?.competitor, // The competitor who performed the technique
+          opponentCountry: matchInfo?.competitorCountry,
+          competitionName: compInfo?.name || tech.competitionName,
+          year: compInfo?.year,
+          scoreGroup: scoreGroup !== 'Unknown' ? scoreGroup : undefined,
+          weightClass: tech.weightClass || tech.weight_class,
+        });
+      }
+      
+      if (scoreGroup === 'Ippon') wazaStats[wazaName].ippon++;
+      else if (scoreGroup === 'Waza-ari') wazaStats[wazaName].wazaAri++;
+      else if (scoreGroup === 'Yuko') wazaStats[wazaName].yuko++;
+    });
+    
+    const wazaBreakdown = Object.entries(wazaStats)
+      .map(([name, data]) => ({
+        name,
+        count: data.count,
+        percentage: (data.count / totalTechniques * 100).toFixed(1),
+        avgScore: data.totalScore / data.count,
+        ippon: data.ippon,
+        wazaAri: data.wazaAri,
+        yuko: data.yuko,
+        matches: Array.from(data.matches.values()),
+      }))
+      .sort((a, b) => b.count - a.count);
+    
+    return {
+      totalTechniques,
+      wazaBreakdown,
     };
   }
 

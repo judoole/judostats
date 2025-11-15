@@ -44,6 +44,26 @@ async function check() {
       console.log(JSON.stringify(t, null, 2));
     });
   }
+
+  // Find judoka who have received techniques
+  const received = db.prepare(`
+    SELECT opponent_id, opponent_name, COUNT(*) as count 
+    FROM techniques 
+    WHERE opponent_id IS NOT NULL AND opponent_id != '' 
+    GROUP BY opponent_id 
+    ORDER BY count DESC 
+    LIMIT 10
+  `).all();
+
+  console.log('\nJudoka who have received techniques:');
+  if (received.length === 0) {
+    console.log('  None found. The database may need more data or opponent information may not be captured.');
+  } else {
+    received.forEach((r: any) => {
+      console.log(`  ${r.opponent_name || 'Unknown'} (ID: ${r.opponent_id}): ${r.count} techniques received`);
+    });
+    console.log(`\nTo test, search for: "${received[0].opponent_name || received[0].opponent_id}" or use ID: ${received[0].opponent_id}`);
+  }
 }
 
 check().catch(console.error);

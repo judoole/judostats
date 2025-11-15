@@ -49,12 +49,16 @@ export async function GET(request: Request) {
       };
       
       const stats = storage.getJudokaStats(judokaId, filters);
+      const techniquesReceived = storage.getTechniquesReceivedByJudoka(judokaId, filters);
       
       if (!stats) {
         return NextResponse.json({ error: 'Judoka not found' }, { status: 404 });
       }
       
-      return NextResponse.json({ stats });
+      return NextResponse.json({ 
+        stats,
+        techniquesReceived,
+      });
     } else if (searchTerm) {
       // Search for judoka by name
       const judokaList = storage.getJudokaList(searchTerm);

@@ -41,6 +41,11 @@ interface JudokaStats {
   country?: string;
 }
 
+interface TechniquesReceived {
+  totalTechniques: number;
+  wazaBreakdown: WazaBreakdown[];
+}
+
 export default function JudokaPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedJudoka, setSelectedJudoka] = useState<string | null>(null);
@@ -213,7 +218,7 @@ export default function JudokaPage() {
               </div>
 
               <div className="bg-white p-8 rounded-lg border border-gray-200">
-                <h3 className="text-xl font-semibold mb-6 text-gray-900">Waza Breakdown</h3>
+                <h3 className="text-xl font-semibold mb-6 text-gray-900">Waza Performed</h3>
                 <div className="space-y-4">
                   {judokaStats.stats.wazaBreakdown.map((waza: WazaBreakdown, index: number) => (
                     <div
@@ -295,6 +300,95 @@ export default function JudokaPage() {
                   ))}
                 </div>
               </div>
+
+              {judokaStats.techniquesReceived && judokaStats.techniquesReceived.totalTechniques > 0 && (
+                <div className="bg-white p-8 rounded-lg border border-gray-200">
+                  <h3 className="text-xl font-semibold mb-6 text-gray-900">Waza Received</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Techniques and scores this judoka has received from opponents
+                  </p>
+                  <div className="space-y-4">
+                    {judokaStats.techniquesReceived.wazaBreakdown.map((waza: WazaBreakdown, index: number) => (
+                      <div
+                        key={index}
+                        className="border border-gray-200 rounded-lg p-6 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                      >
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-lg text-gray-900 mb-3">{waza.name}</h4>
+                            <div className="flex gap-6 mb-4 text-sm">
+                              <span className="text-gray-600">
+                                Count: <span className="font-medium text-gray-900">{waza.count}</span>
+                              </span>
+                              <span className="text-gray-600">
+                                %: <span className="font-medium text-gray-900">{waza.percentage}%</span>
+                              </span>
+                            </div>
+                            {waza.matches && waza.matches.length > 0 && (
+                              <div className="mt-4 space-y-2">
+                                {waza.matches.map((match, idx) => (
+                                  <a
+                                    key={idx}
+                                    href={`https://judobase.ijf.org/#/competition/contest/${match.contestCode}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 hover:border-gray-300 transition-colors"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-lg">🎥</span>
+                                      <div className="flex-1">
+                                        <div className="font-medium text-gray-900">
+                                          {match.opponent ? (
+                                            <>
+                                              from {match.opponent}
+                                              {match.opponentCountry && (
+                                                <span className="text-gray-600 font-normal ml-1">({match.opponentCountry})</span>
+                                              )}
+                                            </>
+                                          ) : (
+                                            <span className="text-gray-500">Match</span>
+                                          )}
+                                          {match.scoreGroup && (
+                                            <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded bg-gray-200 text-gray-700">
+                                              {match.scoreGroup}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="text-xs text-gray-600 mt-1">
+                                          {match.competitionName}
+                                          {match.year && ` (${match.year})`}
+                                          {match.weightClass && ` • ${match.weightClass}`}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex gap-2 text-xs">
+                            {waza.ippon > 0 && (
+                              <span className="px-2.5 py-1 bg-red-50 text-red-700 rounded border border-red-100">
+                                Ippon: {waza.ippon}
+                              </span>
+                            )}
+                            {waza.wazaAri > 0 && (
+                              <span className="px-2.5 py-1 bg-orange-50 text-orange-700 rounded border border-orange-100">
+                                Waza-ari: {waza.wazaAri}
+                              </span>
+                            )}
+                            {waza.yuko > 0 && (
+                              <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded border border-blue-100">
+                                Yuko: {waza.yuko}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="bg-red-50 border border-red-200 rounded-lg p-6">
