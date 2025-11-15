@@ -10,15 +10,64 @@ import path from 'path';
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_PATH = path.join(DATA_DIR, 'judostats.db');
 
-// Re-export interfaces from storage.ts
-export type {
-  StoredCompetition,
-  StoredCategory,
-  StoredMatch,
-  CompetitorData,
-  TechniqueData,
-  JudokaProfile,
-} from './storage';
+// Type definitions
+export interface StoredCompetition {
+  id: number;
+  competitionId: number;
+  name: string;
+  date?: string;
+  location?: string;
+  eventType?: string;
+  year?: number;
+  categories: StoredCategory[];
+}
+
+export interface StoredCategory {
+  id: number;
+  competitionId: number;
+  categoryId: number;
+  weightClass?: string;
+  gender?: string;
+  matches: StoredMatch[];
+}
+
+export interface StoredMatch {
+  id: number;
+  categoryId: number;
+  matchNumber?: string;
+  contestCode: string;
+  competitors: CompetitorData[];
+  techniques: TechniqueData[];
+}
+
+export interface CompetitorData {
+  competitorId: number;
+  name: string;
+  countryCode?: string;
+  country?: string;
+  isWinner: boolean;
+  score: number;
+}
+
+export interface TechniqueData {
+  competitorId?: number;
+  competitorName?: string;
+  techniqueName: string;
+  techniqueType?: string;
+  side?: string;
+  score: number;
+  timestamp?: string;
+  note?: string;
+}
+
+export interface JudokaProfile {
+  id: string;
+  name?: string;
+  height?: number; // in cm
+  age?: number;
+  country?: string;
+  lastUpdated?: string;
+}
 
 async function ensureDataDir() {
   try {
@@ -64,6 +113,7 @@ export class SqliteStorage {
         competitor_name TEXT,
         technique_name TEXT NOT NULL,
         technique_type TEXT,
+        technique_category TEXT,
         side TEXT,
         score INTEGER,
         timestamp TEXT,
@@ -74,9 +124,15 @@ export class SqliteStorage {
         weight_class TEXT,
         gender TEXT,
         event_type TEXT,
-        score_group TEXT
+        score_group TEXT,
+        opponent_id TEXT,
+        opponent_name TEXT,
+        opponent_country TEXT
       )
     `);
+
+    // Migrate existing tables to add new columns if they don't exist
+    this.migrateTable();
 
     // Judoka profiles table
     this.db.exec(`
@@ -95,6 +151,42 @@ export class SqliteStorage {
     this.db.exec(`CREATE INDEX IF NOT EXISTS idx_techniques_technique_name ON techniques(technique_name)`);
     this.db.exec(`CREATE INDEX IF NOT EXISTS idx_techniques_competitor_id ON techniques(competitor_id)`);
     this.db.exec(`CREATE INDEX IF NOT EXISTS idx_competitions_year ON competitions(year)`);
+  }
+
+  private migrateTable() {
+    if (!this.db) return;
+
+    try {
+      // Check if new columns exist by trying to query them
+      const testQuery = this.db.prepare('SELECT technique_category, opponent_id, opponent_name, opponent_country FROM techniques LIMIT 1');
+      testQuery.get();
+    } catch (error: any) {
+      // Columns don't exist, add them
+      if (error.message?.includes('no such column')) {
+        console.log('Migrating techniques table to add new columns...');
+        try {
+          this.db.exec('ALTER TABLE techniques ADD COLUMN technique_category TEXT');
+        } catch (e) {
+          // Column might already exist, ignore
+        }
+        try {
+          this.db.exec('ALTER TABLE techniques ADD COLUMN opponent_id TEXT');
+        } catch (e) {
+          // Column might already exist, ignore
+        }
+        try {
+          this.db.exec('ALTER TABLE techniques ADD COLUMN opponent_name TEXT');
+        } catch (e) {
+          // Column might already exist, ignore
+        }
+        try {
+          this.db.exec('ALTER TABLE techniques ADD COLUMN opponent_country TEXT');
+        } catch (e) {
+          // Column might already exist, ignore
+        }
+        console.log('Migration complete');
+      }
+    }
   }
 
   async load() {
@@ -195,6 +287,8 @@ export class SqliteStorage {
       techniqueName: row.technique_name,
       technique_type: row.technique_type || undefined,
       techniqueType: row.technique_type || undefined,
+      technique_category: row.technique_category || 'tachi-waza',
+      techniqueCategory: row.technique_category || 'tachi-waza',
       side: row.side || undefined,
       score: row.score || undefined,
       timestamp: row.timestamp || undefined,
@@ -208,6 +302,12 @@ export class SqliteStorage {
       eventType: row.event_type || undefined,
       score_group: row.score_group || undefined,
       scoreGroup: row.score_group || undefined,
+      opponent_id: row.opponent_id || undefined,
+      opponentId: row.opponent_id || undefined,
+      opponent_name: row.opponent_name || undefined,
+      opponentName: row.opponent_name || undefined,
+      opponent_country: row.opponent_country || undefined,
+      opponentCountry: row.opponent_country || undefined,
     }));
   }
 
@@ -216,10 +316,11 @@ export class SqliteStorage {
     
     const stmt = this.db.prepare(`
       INSERT INTO techniques 
-      (competitor_id, competitor_name, technique_name, technique_type, side, score, 
+      (competitor_id, competitor_name, technique_name, technique_type, technique_category, side, score, 
        timestamp, note, competition_id, match_contest_code, competition_name, 
-       weight_class, gender, event_type, score_group)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       weight_class, gender, event_type, score_group,
+       opponent_id, opponent_name, opponent_country)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
     stmt.run(
@@ -227,6 +328,7 @@ export class SqliteStorage {
       technique.competitor_name || technique.competitorName || null,
       technique.technique_name || technique.techniqueName || '',
       technique.technique_type || technique.techniqueType || null,
+      technique.technique_category || technique.techniqueCategory || 'tachi-waza',
       technique.side || null,
       technique.score || null,
       technique.timestamp || null,
@@ -238,6 +340,9 @@ export class SqliteStorage {
       technique.gender || null,
       technique.eventType || null,
       technique.score_group || technique.scoreGroup || null,
+      technique.opponent_id || technique.opponentId || null,
+      technique.opponent_name || technique.opponentName || null,
+      technique.opponent_country || technique.opponentCountry || null,
     );
   }
 
@@ -251,10 +356,11 @@ export class SqliteStorage {
     
     const stmt = this.db.prepare(`
       INSERT INTO techniques 
-      (competitor_id, competitor_name, technique_name, technique_type, side, score, 
+      (competitor_id, competitor_name, technique_name, technique_type, technique_category, side, score, 
        timestamp, note, competition_id, match_contest_code, competition_name, 
-       weight_class, gender, event_type, score_group)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       weight_class, gender, event_type, score_group,
+       opponent_id, opponent_name, opponent_country)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
     // Use transaction for better performance
@@ -265,6 +371,7 @@ export class SqliteStorage {
           technique.competitor_name || technique.competitorName || null,
           technique.technique_name || technique.techniqueName || '',
           technique.technique_type || technique.techniqueType || null,
+          technique.technique_category || technique.techniqueCategory || 'tachi-waza',
           technique.side || null,
           technique.score || null,
           technique.timestamp || null,
@@ -276,6 +383,9 @@ export class SqliteStorage {
           technique.gender || null,
           technique.eventType || null,
           technique.score_group || technique.scoreGroup || null,
+          technique.opponent_id || technique.opponentId || null,
+          technique.opponent_name || technique.opponentName || null,
+          technique.opponent_country || technique.opponentCountry || null,
         );
       }
     });
@@ -455,6 +565,8 @@ export class SqliteStorage {
       techniqueName: row.technique_name,
       technique_type: row.technique_type || undefined,
       techniqueType: row.technique_type || undefined,
+      technique_category: row.technique_category || 'tachi-waza',
+      techniqueCategory: row.technique_category || 'tachi-waza',
       side: row.side || undefined,
       score: row.score || undefined,
       timestamp: row.timestamp || undefined,
@@ -468,6 +580,12 @@ export class SqliteStorage {
       eventType: row.event_type || undefined,
       score_group: row.score_group || undefined,
       scoreGroup: row.score_group || undefined,
+      opponent_id: row.opponent_id || undefined,
+      opponentId: row.opponent_id || undefined,
+      opponent_name: row.opponent_name || undefined,
+      opponentName: row.opponent_name || undefined,
+      opponent_country: row.opponent_country || undefined,
+      opponentCountry: row.opponent_country || undefined,
     }));
   }
 
@@ -865,27 +983,19 @@ export class SqliteStorage {
       }
     });
     
+    // Build match map from techniques (which now have opponent info directly)
     const matchMap = new Map<string, { opponent?: string; opponentCountry?: string; competitionId?: number }>();
-    competitions.forEach(comp => {
-      (comp.categories || []).forEach((cat: any) => {
-        (cat.matches || []).forEach((match: any) => {
-          if (match.contestCode && match.competitors && match.competitors.length > 0) {
-            const opponentData = match.competitors.find((c: any) => {
-              const cId = c.competitorId?.toString() || '';
-              const jId = judokaId.toString();
-              return cId !== jId && cId !== '' && jId !== '';
-            });
-            
-            if (opponentData) {
-              matchMap.set(match.contestCode, { 
-                opponent: opponentData.name, 
-                opponentCountry: opponentData.country || opponentData.countryCode,
-                competitionId: comp.id 
-              });
-            }
-          }
+    filteredTechniques.forEach(tech => {
+      const contestCode = tech.matchContestCode || tech.contestCode;
+      const competitionId = tech.competitionId;
+      
+      if (contestCode && !matchMap.has(contestCode)) {
+        matchMap.set(contestCode, {
+          opponent: tech.opponent_name || tech.opponentName,
+          opponentCountry: tech.opponent_country || tech.opponentCountry,
+          competitionId: competitionId,
         });
-      });
+      }
     });
     
     const wazaStats: Record<string, { count: number; totalScore: number; ippon: number; wazaAri: number; yuko: number; matches: Map<string, any> }> = {};

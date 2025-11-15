@@ -236,7 +236,9 @@ export default function JudokaPage() {
                                               <span className="text-gray-600 font-normal ml-1">({match.opponentCountry})</span>
                                             )}
                                           </>
-                                        ) : 'Watch Match'}
+                                        ) : (
+                                          <span className="text-gray-500">Match</span>
+                                        )}
                                         {match.scoreGroup && (
                                           <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded bg-gray-200 text-gray-700">
                                             {match.scoreGroup}
