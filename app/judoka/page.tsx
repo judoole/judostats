@@ -17,6 +17,7 @@ interface MatchInfo {
   competitionName?: string;
   year?: number;
   scoreGroup?: string;
+  weightClass?: string;
 }
 
 interface WazaBreakdown {
@@ -248,6 +249,7 @@ export default function JudokaPage() {
                                       <div className="text-xs text-gray-600 mt-1">
                                         {match.competitionName}
                                         {match.year && ` (${match.year})`}
+                                        {match.weightClass && ` • ${match.weightClass}`}
                                       </div>
                                     </div>
                                   </div>

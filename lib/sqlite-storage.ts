@@ -198,6 +198,26 @@ export class SqliteStorage {
     // better-sqlite3 writes synchronously, so no explicit save needed
     // But we can ensure the database is initialized
     await this.init();
+    
+    // Persist judoka profiles from in-memory Map to database
+    if (this.db && this.judokaProfiles.size > 0) {
+      const stmt = this.db.prepare(`
+        INSERT OR REPLACE INTO judoka_profiles 
+        (id, name, height, age, country, last_updated)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      
+      for (const [id, profile] of this.judokaProfiles.entries()) {
+        stmt.run(
+          profile.id || id,
+          profile.name || null,
+          profile.height || null,
+          profile.age || null,
+          profile.country || null,
+          profile.lastUpdated || new Date().toISOString(),
+        );
+      }
+    }
   }
 
   getAllCompetitions(): any[] {
@@ -1024,6 +1044,7 @@ export class SqliteStorage {
           competitionName: compInfo?.name || tech.competitionName,
           year: compInfo?.year,
           scoreGroup: scoreGroup !== 'Unknown' ? scoreGroup : undefined,
+          weightClass: tech.weightClass || tech.weight_class,
         });
       }
       
