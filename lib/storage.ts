@@ -456,23 +456,46 @@ export class JsonStorage {
       }
     });
     
-    // Create percentile-based height ranges
+    // Create percentile-based height ranges with more granular cutoffs
     const heightRanges: string[] = [];
     const sortedHeights = Array.from(heights).sort((a, b) => a - b);
     if (sortedHeights.length > 0) {
       const len = sortedHeights.length;
       const p10 = sortedHeights[Math.floor(len * 0.1)];
       const p25 = sortedHeights[Math.floor(len * 0.25)];
+      const p35 = sortedHeights[Math.floor(len * 0.35)];
+      const p40 = sortedHeights[Math.floor(len * 0.4)];
       const p50 = sortedHeights[Math.floor(len * 0.5)];
+      const p60 = sortedHeights[Math.floor(len * 0.6)];
+      const p70 = sortedHeights[Math.floor(len * 0.7)];
       const p75 = sortedHeights[Math.floor(len * 0.75)];
+      const p80 = sortedHeights[Math.floor(len * 0.8)];
       const p90 = sortedHeights[Math.floor(len * 0.9)];
       
-      // Create ranges based on percentiles
+      // Create ranges based on percentiles with more granular splits
       if (p10 !== undefined) heightRanges.push(`<${p10}`);
       if (p10 !== undefined && p25 !== undefined && p10 !== p25) heightRanges.push(`${p10}-${p25}`);
-      if (p25 !== undefined && p50 !== undefined && p25 !== p50) heightRanges.push(`${p25}-${p50}`);
-      if (p50 !== undefined && p75 !== undefined && p50 !== p75) heightRanges.push(`${p50}-${p75}`);
-      if (p75 !== undefined && p90 !== undefined && p75 !== p90) heightRanges.push(`${p75}-${p90}`);
+      // Split the large p25-p50 range into smaller chunks
+      if (p25 !== undefined && p50 !== undefined && p25 !== p50) {
+        if (p35 !== undefined && p25 !== p35) heightRanges.push(`${p25}-${p35}`);
+        if (p40 !== undefined && p35 !== undefined && p35 !== p40) heightRanges.push(`${p35}-${p40}`);
+        if (p40 !== undefined && p50 !== undefined && p40 !== p50) heightRanges.push(`${p40}-${p50}`);
+      }
+      // Split the large p50-p75 range at 182 for better granularity
+      if (p50 !== undefined) {
+        // Use 182 as split point if p50 < 182 < p75, otherwise use percentiles
+        if (p50 < 182 && (p75 === undefined || 182 < p75)) {
+          if (p50 !== 182) heightRanges.push(`${p50}-182`);
+          if (p75 !== undefined && 182 !== p75) heightRanges.push(`182-${p75}`);
+        } else {
+          // Fall back to percentile-based splits
+          if (p50 !== undefined && p60 !== undefined && p50 !== p60) heightRanges.push(`${p50}-${p60}`);
+          if (p60 !== undefined && p70 !== undefined && p60 !== p70) heightRanges.push(`${p60}-${p70}`);
+          if (p70 !== undefined && p75 !== undefined && p70 !== p75) heightRanges.push(`${p70}-${p75}`);
+        }
+      }
+      if (p75 !== undefined && p80 !== undefined && p75 !== p80) heightRanges.push(`${p75}-${p80}`);
+      if (p80 !== undefined && p90 !== undefined && p80 !== p90) heightRanges.push(`${p80}-${p90}`);
       if (p90 !== undefined) heightRanges.push(`>=${p90}`);
     }
     
