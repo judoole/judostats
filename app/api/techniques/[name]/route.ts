@@ -59,6 +59,7 @@ export async function GET(
       year,
       scoreGroup: scoreGroupParam || undefined,
       heightRange: searchParams.get('heightRange') || undefined,
+      techniqueCategory: searchParams.get('techniqueCategory') || undefined,
     };
     
     await storage.load();

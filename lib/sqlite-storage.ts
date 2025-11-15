@@ -640,8 +640,13 @@ export class SqliteStorage {
     const competitions = this.getAllCompetitions();
     const techniques = this.getAllTechniques();
     
+    // Filter out walkovers (Fusen-Gachi) from display, but keep in DB
+    let filteredTechniques = techniques.filter(t => {
+      const name = (t.techniqueName || t.technique_name || '').toLowerCase();
+      return name !== 'fusen-gachi' && name !== 'fusen gachi';
+    });
+    
     // Apply filters
-    let filteredTechniques = techniques;
     if (filters) {
       if (filters.gender) {
         filteredTechniques = filteredTechniques.filter(t => (t.gender || '').toLowerCase() === filters.gender?.toLowerCase());
@@ -678,6 +683,21 @@ export class SqliteStorage {
           if (!profile || !profile.height) return false;
           
           return this.heightMatchesRange(profile.height, heightRange);
+        });
+      }
+      if (filters.techniqueCategory) {
+        const category = filters.techniqueCategory;
+        // Map display names to stored values
+        const categoryMap: Record<string, string> = {
+          'nage-waza': 'tachi-waza',
+          'osaekomi-waza': 'osaekomi',
+          'shime-waza': 'shime-waza',
+          'kansetsu-waza': 'kansetsu-waza',
+        };
+        const storedCategory = categoryMap[category] || category;
+        filteredTechniques = filteredTechniques.filter(t => {
+          const techCategory = t.technique_category || t.techniqueCategory || 'tachi-waza';
+          return techCategory === storedCategory;
         });
       }
     }
@@ -786,7 +806,11 @@ export class SqliteStorage {
     // Similar to getStats but for technique-specific stats
     const techniques = this.getAllTechniques();
     
-    let filteredTechniques = techniques;
+    // Filter out walkovers (Fusen-Gachi) from display, but keep in DB
+    let filteredTechniques = techniques.filter(t => {
+      const name = (t.techniqueName || t.technique_name || '').toLowerCase();
+      return name !== 'fusen-gachi' && name !== 'fusen gachi';
+    });
     if (filters) {
       if (filters.gender) {
         filteredTechniques = filteredTechniques.filter(t => (t.gender || '').toLowerCase() === filters.gender?.toLowerCase());
@@ -832,6 +856,21 @@ export class SqliteStorage {
           return scoreGroup === filters.scoreGroup;
         });
       }
+      if (filters.techniqueCategory) {
+        const category = filters.techniqueCategory;
+        // Map display names to stored values
+        const categoryMap: Record<string, string> = {
+          'nage-waza': 'tachi-waza',
+          'osaekomi-waza': 'osaekomi',
+          'shime-waza': 'shime-waza',
+          'kansetsu-waza': 'kansetsu-waza',
+        };
+        const storedCategory = categoryMap[category] || category;
+        filteredTechniques = filteredTechniques.filter(t => {
+          const techCategory = t.technique_category || t.techniqueCategory || 'tachi-waza';
+          return techCategory === storedCategory;
+        });
+      }
     }
     
     const techniqueStats: Record<string, { total: number; ippon: number; wazaAri: number; yuko: number; avgScore: number }> = {};
@@ -868,6 +907,7 @@ export class SqliteStorage {
     const genders = new Set(techniques.map(t => t.gender).filter(Boolean));
     const weightClasses = new Set(techniques.map(t => t.weightClass).filter(Boolean));
     const eventTypes = new Set(techniques.map(t => t.eventType).filter(Boolean));
+    const techniqueCategories = new Set(techniques.map(t => t.technique_category || t.techniqueCategory || 'tachi-waza').filter(Boolean));
     const years = Array.from(new Set(competitions.map(c => c.year).filter(Boolean))).sort((a, b) => (b || 0) - (a || 0));
     
     // Get available height ranges from judoka profiles using percentiles
@@ -924,6 +964,7 @@ export class SqliteStorage {
       genders: Array.from(genders) as string[],
       weightClasses: Array.from(weightClasses) as string[],
       eventTypes: Array.from(eventTypes) as string[],
+      techniqueCategories: Array.from(techniqueCategories) as string[],
       years: years as number[],
       heightRanges: heightRanges,
     };
@@ -980,9 +1021,11 @@ export class SqliteStorage {
     const techniques = this.getAllTechniques();
     const competitions = this.getAllCompetitions();
     
+    // Filter out walkovers (Fusen-Gachi) from display, but keep in DB
     let filteredTechniques = techniques.filter(t => {
       const id = t.competitor_id || t.competitorId || '';
-      return id === judokaId;
+      const name = (t.techniqueName || t.technique_name || '').toLowerCase();
+      return id === judokaId && name !== 'fusen-gachi' && name !== 'fusen gachi';
     });
     
     if (filters) {
@@ -1091,9 +1134,11 @@ export class SqliteStorage {
   }
 
   getMatchesForTechnique(techniqueName: string, filters?: any) {
+    // Filter out walkovers (Fusen-Gachi) from display, but keep in DB
     let filteredTechniques = this.getAllTechniques().filter(t => {
       const name = t.techniqueName || t.technique_name || 'Unknown';
-      return name.toLowerCase() === techniqueName.toLowerCase();
+      const nameLower = name.toLowerCase();
+      return nameLower === techniqueName.toLowerCase() && nameLower !== 'fusen-gachi' && nameLower !== 'fusen gachi';
     });
     
     if (filters) {
@@ -1139,6 +1184,21 @@ export class SqliteStorage {
           if (!profile || !profile.height) return false;
           
           return this.heightMatchesRange(profile.height, heightRange);
+        });
+      }
+      if (filters.techniqueCategory) {
+        const category = filters.techniqueCategory;
+        // Map display names to stored values
+        const categoryMap: Record<string, string> = {
+          'nage-waza': 'tachi-waza',
+          'osaekomi-waza': 'osaekomi',
+          'shime-waza': 'shime-waza',
+          'kansetsu-waza': 'kansetsu-waza',
+        };
+        const storedCategory = categoryMap[category] || category;
+        filteredTechniques = filteredTechniques.filter(t => {
+          const techCategory = t.technique_category || t.techniqueCategory || 'tachi-waza';
+          return techCategory === storedCategory;
         });
       }
     }
@@ -1164,9 +1224,11 @@ export class SqliteStorage {
   }
 
   getTopJudokaForTechnique(techniqueName: string, limit: number = 10, filters?: any) {
+    // Filter out walkovers (Fusen-Gachi) from display, but keep in DB
     let filteredTechniques = this.getAllTechniques().filter(t => {
       const name = t.techniqueName || t.technique_name || 'Unknown';
-      return name.toLowerCase() === techniqueName.toLowerCase();
+      const nameLower = name.toLowerCase();
+      return nameLower === techniqueName.toLowerCase() && nameLower !== 'fusen-gachi' && nameLower !== 'fusen gachi';
     });
     
     if (filters) {
@@ -1212,6 +1274,21 @@ export class SqliteStorage {
           if (!profile || !profile.height) return false;
           
           return this.heightMatchesRange(profile.height, heightRange);
+        });
+      }
+      if (filters.techniqueCategory) {
+        const category = filters.techniqueCategory;
+        // Map display names to stored values
+        const categoryMap: Record<string, string> = {
+          'nage-waza': 'tachi-waza',
+          'osaekomi-waza': 'osaekomi',
+          'shime-waza': 'shime-waza',
+          'kansetsu-waza': 'kansetsu-waza',
+        };
+        const storedCategory = categoryMap[category] || category;
+        filteredTechniques = filteredTechniques.filter(t => {
+          const techCategory = t.technique_category || t.techniqueCategory || 'tachi-waza';
+          return techCategory === storedCategory;
         });
       }
     }

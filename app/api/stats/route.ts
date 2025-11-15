@@ -37,6 +37,7 @@ export async function GET(request: Request) {
       competitionId,
       year,
       heightRange: searchParams.get('heightRange') || undefined,
+      techniqueCategory: searchParams.get('techniqueCategory') || undefined,
     };
     
     const stats = storage.getStats(filters);
