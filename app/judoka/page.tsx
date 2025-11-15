@@ -36,6 +36,7 @@ interface JudokaStats {
   name: string;
   totalTechniques: number;
   wazaBreakdown: WazaBreakdown[];
+  favoriteTechnique?: string;
   height?: number;
   age?: number;
   country?: string;
@@ -195,8 +196,8 @@ export default function JudokaPage() {
                   <p className="text-gray-600">
                     Total scores collected: <span className="font-semibold text-gray-900">{judokaStats.stats.totalTechniques}</span>
                   </p>
-                  {(judokaStats.stats.height || judokaStats.stats.age || judokaStats.stats.country) && (
-                    <div className="flex gap-6 mt-4 text-sm text-gray-600">
+                  {(judokaStats.stats.height || judokaStats.stats.age || judokaStats.stats.country || judokaStats.stats.favoriteTechnique) && (
+                    <div className="flex gap-6 mt-4 text-sm text-gray-600 flex-wrap">
                       {judokaStats.stats.height && (
                         <span>
                           Height: <span className="font-medium text-gray-900">{judokaStats.stats.height} cm</span>
@@ -210,6 +211,11 @@ export default function JudokaPage() {
                       {judokaStats.stats.country && (
                         <span>
                           Country: <span className="font-medium text-gray-900">{judokaStats.stats.country}</span>
+                        </span>
+                      )}
+                      {judokaStats.stats.favoriteTechnique && (
+                        <span>
+                          Favorite throw: <span className="font-medium text-gray-900 capitalize">{judokaStats.stats.favoriteTechnique}</span>
                         </span>
                       )}
                     </div>

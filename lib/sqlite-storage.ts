@@ -1103,11 +1103,15 @@ export class SqliteStorage {
     
     const profile = this.getJudokaProfile(judokaId);
     
+    // Favorite technique is the most frequently performed one
+    const favoriteTechnique = wazaBreakdown.length > 0 ? wazaBreakdown[0].name : undefined;
+    
     return {
       id: judokaId,
       name,
       totalTechniques,
       wazaBreakdown,
+      favoriteTechnique,
       height: profile?.height,
       age: profile?.age,
       country: profile?.country,
