@@ -684,7 +684,7 @@ export class JsonStorage {
     };
   }
 
-  getMatchesForTechnique(techniqueName: string, filters?: { gender?: string; weightClass?: string; eventType?: string; competitionId?: number; year?: number; scoreGroup?: string }) {
+  getMatchesForTechnique(techniqueName: string, filters?: { gender?: string; weightClass?: string; eventType?: string; competitionId?: number; year?: number; scoreGroup?: string; heightRange?: string }) {
     let filteredTechniques = this.techniques.filter(t => {
       const name = t.techniqueName || t.technique_name || 'Unknown';
       return name.toLowerCase() === techniqueName.toLowerCase();
@@ -723,6 +723,19 @@ export class JsonStorage {
           return scoreGroup === filters.scoreGroup;
         });
       }
+      if (filters.heightRange) {
+        // Filter by judoka height range
+        const heightRange = filters.heightRange; // Store in const for type narrowing
+        filteredTechniques = filteredTechniques.filter(t => {
+          const competitorId = (t.competitor_id || t.competitorId || '').toString();
+          if (!competitorId) return false;
+          
+          const profile = this.getJudokaProfile(competitorId);
+          if (!profile || !profile.height) return false;
+          
+          return this.heightMatchesRange(profile.height, heightRange);
+        });
+      }
     }
 
     // Group by contest code to get unique matches
@@ -746,7 +759,7 @@ export class JsonStorage {
     return Array.from(matchMap.values());
   }
 
-  getTopJudokaForTechnique(techniqueName: string, limit: number = 10, filters?: { gender?: string; weightClass?: string; eventType?: string; competitionId?: number; year?: number; scoreGroup?: string }) {
+  getTopJudokaForTechnique(techniqueName: string, limit: number = 10, filters?: { gender?: string; weightClass?: string; eventType?: string; competitionId?: number; year?: number; scoreGroup?: string; heightRange?: string }) {
     // Filter techniques for this specific technique
     let filteredTechniques = this.techniques.filter(t => {
       const name = t.techniqueName || t.technique_name || 'Unknown';
@@ -784,6 +797,19 @@ export class JsonStorage {
         filteredTechniques = filteredTechniques.filter(t => {
           const scoreGroup = t.score_group || t.scoreGroup || 'Unknown';
           return scoreGroup === filters.scoreGroup;
+        });
+      }
+      if (filters.heightRange) {
+        // Filter by judoka height range
+        const heightRange = filters.heightRange; // Store in const for type narrowing
+        filteredTechniques = filteredTechniques.filter(t => {
+          const competitorId = (t.competitor_id || t.competitorId || '').toString();
+          if (!competitorId) return false;
+          
+          const profile = this.getJudokaProfile(competitorId);
+          if (!profile || !profile.height) return false;
+          
+          return this.heightMatchesRange(profile.height, heightRange);
         });
       }
     }

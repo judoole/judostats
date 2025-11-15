@@ -58,6 +58,7 @@ export async function GET(
       competitionId,
       year,
       scoreGroup: scoreGroupParam || undefined,
+      heightRange: searchParams.get('heightRange') || undefined,
     };
     
     await storage.load();

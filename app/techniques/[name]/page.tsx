@@ -31,14 +31,16 @@ export default function TechniqueDetailPage() {
   const [selectedGender, setSelectedGender] = useState<string>('');
   const [selectedWeightClass, setSelectedWeightClass] = useState<string>('');
   const [selectedScoreGroup, setSelectedScoreGroup] = useState<string>('');
+  const [selectedHeightRange, setSelectedHeightRange] = useState<string>('');
 
   const filterParams = new URLSearchParams();
   if (selectedGender) filterParams.append('gender', selectedGender);
   if (selectedWeightClass) filterParams.append('weightClass', selectedWeightClass);
   if (selectedScoreGroup) filterParams.append('scoreGroup', selectedScoreGroup);
+  if (selectedHeightRange) filterParams.append('heightRange', selectedHeightRange);
 
   const { data: response, isLoading } = useQuery({
-    queryKey: ['technique-detail', decodedName, selectedGender, selectedWeightClass, selectedScoreGroup],
+    queryKey: ['technique-detail', decodedName, selectedGender, selectedWeightClass, selectedScoreGroup, selectedHeightRange],
     queryFn: async () => {
       const { data } = await axios.get(`/api/techniques/${encodeURIComponent(decodedName)}?${filterParams.toString()}`);
       return data;
@@ -48,7 +50,7 @@ export default function TechniqueDetailPage() {
 
   const topJudoka = response?.topJudoka || [];
   const matches = response?.matches || [];
-  const availableFilters = response?.availableFilters || { genders: [], weightClasses: [], eventTypes: [], years: [] };
+  const availableFilters = response?.availableFilters || { genders: [], weightClasses: [], eventTypes: [], years: [], heightRanges: [] };
 
   if (isLoading) {
     return (
@@ -110,6 +112,18 @@ export default function TechniqueDetailPage() {
             <option value="Ippon">Ippon</option>
             <option value="Waza-ari">Waza-ari</option>
             <option value="Yuko">Yuko</option>
+          </select>
+          <select
+            value={selectedHeightRange}
+            onChange={(e) => setSelectedHeightRange(e.target.value)}
+            className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
+          >
+            <option value="">All Heights</option>
+            {(availableFilters.heightRanges || []).map((range: string) => (
+              <option key={range} value={range}>
+                {range.replace('<', '< ').replace('>=', '≥ ')} cm
+              </option>
+            ))}
           </select>
         </div>
       </div>
