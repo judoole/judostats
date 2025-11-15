@@ -56,6 +56,15 @@ export interface TechniqueData {
   note?: string;
 }
 
+export interface JudokaProfile {
+  id: string;
+  name?: string;
+  height?: number; // in cm
+  age?: number;
+  country?: string;
+  lastUpdated?: string;
+}
+
 async function ensureDataDir() {
   try {
     await fs.mkdir(DATA_DIR, { recursive: true });
@@ -67,8 +76,10 @@ async function ensureDataDir() {
 export class JsonStorage {
   private competitionsPath = path.join(DATA_DIR, 'competitions.json');
   private techniquesPath = path.join(DATA_DIR, 'techniques.json');
+  private judokaProfilesPath = path.join(DATA_DIR, 'judoka-profiles.json');
   private competitions: StoredCompetition[] = [];
   private techniques: any[] = [];
+  public judokaProfiles: Map<string, JudokaProfile> = new Map();
 
   async load() {
     await ensureDataDir();
@@ -86,6 +97,26 @@ export class JsonStorage {
     } catch {
       this.techniques = [];
     }
+
+    try {
+      const profilesData = await fs.readFile(this.judokaProfilesPath, 'utf-8');
+      const profiles = JSON.parse(profilesData);
+      if (Array.isArray(profiles)) {
+        // Legacy format: array
+        profiles.forEach((profile: JudokaProfile) => {
+          if (profile.id) {
+            this.judokaProfiles.set(profile.id, profile);
+          }
+        });
+      } else if (typeof profiles === 'object') {
+        // New format: object/map
+        Object.entries(profiles).forEach(([id, profile]) => {
+          this.judokaProfiles.set(id, profile as JudokaProfile);
+        });
+      }
+    } catch {
+      this.judokaProfiles = new Map();
+    }
   }
 
   async save() {
@@ -94,6 +125,13 @@ export class JsonStorage {
     // Use compact JSON (no pretty printing) to reduce file size
     await fs.writeFile(this.competitionsPath, JSON.stringify(this.competitions));
     await fs.writeFile(this.techniquesPath, JSON.stringify(this.techniques));
+    
+    // Save judoka profiles as object for easier lookup
+    const profilesObj: Record<string, JudokaProfile> = {};
+    this.judokaProfiles.forEach((profile, id) => {
+      profilesObj[id] = profile;
+    });
+    await fs.writeFile(this.judokaProfilesPath, JSON.stringify(profilesObj));
   }
 
   getAllCompetitions(): StoredCompetition[] {
@@ -176,7 +214,7 @@ export class JsonStorage {
     return result;
   }
 
-  getStats(filters?: { gender?: string; weightClass?: string; eventType?: string; competitionId?: number; year?: number }) {
+  getStats(filters?: { gender?: string; weightClass?: string; eventType?: string; competitionId?: number; year?: number; heightRange?: string }) {
     // Filter techniques based on provided filters
     let filteredTechniques = this.techniques;
     
@@ -205,6 +243,18 @@ export class JsonStorage {
           if (!t.competitionId) return false;
           const compYear = competitionYearMap.get(t.competitionId);
           return compYear === filters.year;
+        });
+      }
+      if (filters.heightRange) {
+        // Filter by judoka height range
+        filteredTechniques = filteredTechniques.filter(t => {
+          const competitorId = (t.competitor_id || t.competitorId || '').toString();
+          if (!competitorId) return false;
+          
+          const profile = this.getJudokaProfile(competitorId);
+          if (!profile || !profile.height) return false;
+          
+          return this.heightMatchesRange(profile.height, filters.heightRange);
         });
       }
     }
@@ -307,7 +357,7 @@ export class JsonStorage {
     };
   }
 
-  getTechniqueStats(filters?: { gender?: string; weightClass?: string; eventType?: string; competitionId?: number; year?: number }) {
+  getTechniqueStats(filters?: { gender?: string; weightClass?: string; eventType?: string; competitionId?: number; year?: number; heightRange?: string; scoreGroup?: string }) {
     // Filter techniques based on provided filters
     let filteredTechniques = this.techniques;
     
@@ -336,6 +386,24 @@ export class JsonStorage {
           if (!t.competitionId) return false;
           const compYear = competitionYearMap.get(t.competitionId);
           return compYear === filters.year;
+        });
+      }
+      if (filters.heightRange) {
+        // Filter by judoka height range
+        filteredTechniques = filteredTechniques.filter(t => {
+          const competitorId = (t.competitor_id || t.competitorId || '').toString();
+          if (!competitorId) return false;
+          
+          const profile = this.getJudokaProfile(competitorId);
+          if (!profile || !profile.height) return false;
+          
+          return this.heightMatchesRange(profile.height, filters.heightRange);
+        });
+      }
+      if (filters.scoreGroup) {
+        filteredTechniques = filteredTechniques.filter(t => {
+          const scoreGroup = t.score_group || t.scoreGroup || 'Unknown';
+          return scoreGroup === filters.scoreGroup;
         });
       }
     }
@@ -374,12 +442,55 @@ export class JsonStorage {
     const eventTypes = new Set(this.techniques.map(t => t.eventType).filter(Boolean));
     const years = Array.from(new Set(this.competitions.map(c => c.year).filter(Boolean))).sort((a, b) => (b || 0) - (a || 0));
     
+    // Get available height ranges from judoka profiles
+    const heights = new Set<number>();
+    this.techniques.forEach(t => {
+      const competitorId = (t.competitor_id || t.competitorId || '').toString();
+      if (competitorId) {
+        const profile = this.getJudokaProfile(competitorId);
+        if (profile?.height) {
+          heights.add(profile.height);
+        }
+      }
+    });
+    
+    // Create height ranges: 150-160, 160-170, 170-180, 180-190, 190+
+    const heightRanges: string[] = [];
+    const sortedHeights = Array.from(heights).sort((a, b) => a - b);
+    if (sortedHeights.length > 0) {
+      const minHeight = Math.floor(sortedHeights[0] / 10) * 10;
+      const maxHeight = Math.ceil(sortedHeights[sortedHeights.length - 1] / 10) * 10;
+      
+      for (let start = minHeight; start < maxHeight; start += 10) {
+        const end = start + 10;
+        // Check if any heights fall in this range
+        if (sortedHeights.some(h => h >= start && h < end)) {
+          heightRanges.push(`${start}-${end}`);
+        }
+      }
+      // Add 190+ if there are heights >= 190
+      if (sortedHeights.some(h => h >= 190)) {
+        heightRanges.push('190+');
+      }
+    }
+    
     return {
       genders: Array.from(genders) as string[],
       weightClasses: Array.from(weightClasses) as string[],
       eventTypes: Array.from(eventTypes) as string[],
       years: years as number[],
+      heightRanges: heightRanges,
     };
+  }
+
+  private heightMatchesRange(height: number, range: string): boolean {
+    if (range.endsWith('+')) {
+      const min = parseInt(range.replace('+', ''), 10);
+      return height >= min;
+    }
+    
+    const [min, max] = range.split('-').map(s => parseInt(s, 10));
+    return height >= min && height < max;
   }
 
   getJudokaList(searchTerm?: string) {
@@ -519,11 +630,17 @@ export class JsonStorage {
       }))
       .sort((a, b) => b.count - a.count);
     
+    // Get profile information (height, age, country)
+    const profile = this.getJudokaProfile(judokaId);
+    
     return {
       id: judokaId,
       name,
       totalTechniques,
       wazaBreakdown,
+      height: profile?.height,
+      age: profile?.age,
+      country: profile?.country,
     };
   }
 
@@ -662,5 +779,60 @@ export class JsonStorage {
       .slice(0, limit);
     
     return topJudoka;
+  }
+
+  // Judoka profile methods
+  getJudokaProfile(judokaId: string): JudokaProfile | undefined {
+    return this.judokaProfiles.get(judokaId);
+  }
+
+  async setJudokaProfile(profile: JudokaProfile): Promise<void> {
+    profile.lastUpdated = new Date().toISOString();
+    this.judokaProfiles.set(profile.id, profile);
+    await this.save();
+  }
+
+  async updateJudokaProfile(judokaId: string, updates: Partial<JudokaProfile>): Promise<void> {
+    const existing = this.judokaProfiles.get(judokaId) || { id: judokaId };
+    const updated: JudokaProfile = {
+      ...existing,
+      ...updates,
+      id: judokaId,
+      lastUpdated: new Date().toISOString(),
+    };
+    this.judokaProfiles.set(judokaId, updated);
+    await this.save();
+  }
+
+  getAllJudokaProfiles(): JudokaProfile[] {
+    return Array.from(this.judokaProfiles.values());
+  }
+
+  getAllUniqueJudokaIds(): Set<string> {
+    const judokaIds = new Set<string>();
+    
+    // Extract competitor IDs from all techniques
+    this.techniques.forEach(t => {
+      const id = (t.competitor_id || t.competitorId || '').toString();
+      if (id && id !== '0' && id !== '') {
+        judokaIds.add(id);
+      }
+    });
+    
+    // Extract competitor IDs from all match competitors in stored competitions
+    this.competitions.forEach(comp => {
+      comp.categories?.forEach(cat => {
+        cat.matches?.forEach(match => {
+          match.competitors?.forEach(competitor => {
+            const id = (competitor.competitorId || '').toString();
+            if (id && id !== '0' && id !== '') {
+              judokaIds.add(id);
+            }
+          });
+        });
+      });
+    });
+    
+    return judokaIds;
   }
 }

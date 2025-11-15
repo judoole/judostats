@@ -62,6 +62,31 @@ export interface Technique {
   side?: string;
 }
 
+export interface CompetitorInfo {
+  family_name: string;
+  middle_name?: string;
+  given_name: string;
+  family_name_local?: string;
+  middle_name_local?: string;
+  given_name_local?: string;
+  short_name?: string;
+  gender?: string;
+  height?: string; // in cm
+  birth_date?: string;
+  dob_year?: string;
+  age?: string;
+  country?: string;
+  id_country?: string;
+  country_short?: string;
+  coach?: string;
+  belt?: string;
+  ftechique?: string; // favorite technique
+  side?: string;
+  categories?: string[];
+  personal_picture?: string;
+  [key: string]: any;
+}
+
 export class IJFClient {
   private async fetchJson(params: Record<string, string>): Promise<any> {
     const queryParams = new URLSearchParams();
@@ -279,6 +304,19 @@ export class IJFClient {
     if (score === -1) return 'Penalty';
     
     return score > 0 ? 'Unknown' : 'Penalty';
+  }
+
+  async getCompetitorInfo(personId: number): Promise<CompetitorInfo | null> {
+    const data = await this.fetchJson({
+      'params[action]': 'competitor.info',
+      'params[id_person]': personId.toString(),
+    });
+    
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      return data as CompetitorInfo;
+    }
+    
+    return null;
   }
 }
 

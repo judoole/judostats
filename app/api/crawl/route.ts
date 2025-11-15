@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { limit, minYear, skipExisting } = await request.json().catch(() => ({}));
+    const { limit, minYear, skipExisting, force } = await request.json().catch(() => ({}));
 
     await storage.load();
 
@@ -179,7 +179,84 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ success: true, message: 'Crawl completed' });
+    // Fetch judoka profiles after processing competitions
+    console.log('Collecting unique judoka IDs...');
+    const allJudokaIds = storage.getAllUniqueJudokaIds();
+    const judokaIdsArray = Array.from(allJudokaIds);
+    console.log(`Found ${judokaIdsArray.length} unique judoka`);
+
+    // Filter out judoka that already have profiles (unless force=true)
+    const judokaIdsToFetch = force 
+      ? judokaIdsArray 
+      : judokaIdsArray.filter(id => !storage.getJudokaProfile(id));
+
+    console.log(`Fetching profiles for ${judokaIdsToFetch.length} judoka (${judokaIdsArray.length - judokaIdsToFetch.length} already have profiles)`);
+
+    // Fetch profiles with rate limiting
+    let fetched = 0;
+    let skipped = judokaIdsArray.length - judokaIdsToFetch.length;
+    let errors = 0;
+
+    for (let i = 0; i < judokaIdsToFetch.length; i++) {
+      const judokaId = judokaIdsToFetch[i];
+      
+      try {
+        const personId = parseInt(judokaId, 10);
+        if (isNaN(personId)) {
+          console.warn(`Invalid judoka ID: ${judokaId}`);
+          errors++;
+          continue;
+        }
+
+        const competitorInfo = await client.getCompetitorInfo(personId);
+        
+        if (competitorInfo) {
+          // Convert IJF API response to our profile format
+          const profile = {
+            id: judokaId,
+            name: `${competitorInfo.given_name} ${competitorInfo.family_name}`.trim(),
+            height: competitorInfo.height ? parseInt(competitorInfo.height, 10) : undefined,
+            age: competitorInfo.age ? parseInt(competitorInfo.age, 10) : undefined,
+            country: competitorInfo.country || competitorInfo.country_short,
+            lastUpdated: new Date().toISOString(),
+          };
+          
+          // Add to storage in memory (don't save yet)
+          storage.judokaProfiles.set(profile.id, profile);
+          fetched++;
+          
+          // Save every 50 profiles to reduce disk I/O
+          if ((i + 1) % 50 === 0 || (i + 1) === judokaIdsToFetch.length) {
+            await storage.save();
+            console.log(`  Progress: ${i + 1}/${judokaIdsToFetch.length} profiles fetched and saved`);
+          } else if ((i + 1) % 10 === 0) {
+            console.log(`  Progress: ${i + 1}/${judokaIdsToFetch.length} profiles fetched`);
+          }
+        } else {
+          console.warn(`Failed to fetch profile for judoka ${judokaId}`);
+          errors++;
+        }
+      } catch (error) {
+        console.error(`Error fetching profile for judoka ${judokaId}:`, error);
+        errors++;
+      }
+    }
+    
+    // Final save to ensure all profiles are persisted
+    await storage.save();
+
+    console.log(`✓ Profile fetching completed: ${fetched} fetched, ${skipped} skipped, ${errors} errors`);
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Crawl completed',
+      judokaProfiles: {
+        total: judokaIdsArray.length,
+        fetched,
+        skipped,
+        errors,
+      },
+    });
   } catch (error: any) {
     console.error('Error during crawl:', error);
     return NextResponse.json(

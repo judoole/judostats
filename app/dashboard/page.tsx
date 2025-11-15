@@ -68,6 +68,7 @@ export default function Dashboard() {
   const [selectedWeightClass, setSelectedWeightClass] = useState<string>('');
   const [selectedEventType, setSelectedEventType] = useState<string>('');
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [selectedHeightRange, setSelectedHeightRange] = useState<string>('');
 
   const { data: competitions } = useQuery({
     queryKey: ['competitions'],
@@ -81,9 +82,10 @@ export default function Dashboard() {
   if (selectedWeightClass) filterParams.append('weightClass', selectedWeightClass);
   if (selectedEventType) filterParams.append('eventType', selectedEventType);
   if (selectedYear) filterParams.append('year', selectedYear.toString());
+  if (selectedHeightRange) filterParams.append('heightRange', selectedHeightRange);
 
   const { data: response, isLoading } = useQuery({
-    queryKey: ['stats', selectedCompetition, selectedGender, selectedWeightClass, selectedEventType, selectedYear],
+    queryKey: ['stats', selectedCompetition, selectedGender, selectedWeightClass, selectedEventType, selectedYear, selectedHeightRange],
     queryFn: async () => {
       const { data } = await axios.get(`/api/stats?${filterParams.toString()}`);
       return data;
@@ -92,7 +94,7 @@ export default function Dashboard() {
   });
 
   const stats = response?.stats;
-  const availableFilters = response?.availableFilters || { genders: [], weightClasses: [], eventTypes: [], years: [] };
+  const availableFilters = response?.availableFilters || { genders: [], weightClasses: [], eventTypes: [], years: [], heightRanges: [] };
 
   if (isLoading) {
     return (
@@ -174,6 +176,18 @@ export default function Dashboard() {
             {(availableFilters.years || []).map((year: number) => (
               <option key={year} value={String(year)}>
                 {year}
+              </option>
+            ))}
+          </select>
+          <select
+            value={selectedHeightRange}
+            onChange={(e) => setSelectedHeightRange(e.target.value)}
+            className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
+          >
+            <option value="">All Heights</option>
+            {(availableFilters.heightRanges || []).map((range: string) => (
+              <option key={range} value={range}>
+                {range} cm
               </option>
             ))}
           </select>

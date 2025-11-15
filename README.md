@@ -60,6 +60,7 @@ The application uses the IJF public API to collect competition data:
 npm install
 ```
 
+
 ### Run Development Server
 
 ```bash
@@ -147,6 +148,8 @@ Or use a tool like Postman or Insomnia.
 - `GET /api/techniques/[name]` - Get detailed information about a specific technique
 - `GET /api/stats` - Get aggregated statistics with filters
 - `GET /api/judoka` - Search judoka or get individual judoka statistics
+- `GET /api/judoka/[id]/profile` - Fetch judoka profile (height, age, country) from IJF API
+  - Query params: `?force=true` to refresh existing profile
 
 ### Data Collection Endpoint
 

@@ -35,6 +35,9 @@ interface JudokaStats {
   name: string;
   totalTechniques: number;
   wazaBreakdown: WazaBreakdown[];
+  height?: number;
+  age?: number;
+  country?: string;
 }
 
 export default function JudokaPage() {
@@ -167,9 +170,30 @@ export default function JudokaPage() {
             <div className="space-y-8">
               <div className="bg-white p-8 rounded-lg border border-gray-200">
                 <h2 className="text-2xl font-semibold mb-3 text-gray-900">{judokaStats.stats.name}</h2>
-                <p className="text-gray-600">
-                  Total scores collected: <span className="font-semibold text-gray-900">{judokaStats.stats.totalTechniques}</span>
-                </p>
+                <div className="space-y-2">
+                  <p className="text-gray-600">
+                    Total scores collected: <span className="font-semibold text-gray-900">{judokaStats.stats.totalTechniques}</span>
+                  </p>
+                  {(judokaStats.stats.height || judokaStats.stats.age || judokaStats.stats.country) && (
+                    <div className="flex gap-6 mt-4 text-sm text-gray-600">
+                      {judokaStats.stats.height && (
+                        <span>
+                          Height: <span className="font-medium text-gray-900">{judokaStats.stats.height} cm</span>
+                        </span>
+                      )}
+                      {judokaStats.stats.age && (
+                        <span>
+                          Age: <span className="font-medium text-gray-900">{judokaStats.stats.age}</span>
+                        </span>
+                      )}
+                      {judokaStats.stats.country && (
+                        <span>
+                          Country: <span className="font-medium text-gray-900">{judokaStats.stats.country}</span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="bg-white p-8 rounded-lg border border-gray-200">

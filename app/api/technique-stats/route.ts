@@ -36,6 +36,7 @@ export async function GET(request: Request) {
       eventType: searchParams.get('eventType') || undefined,
       competitionId,
       year,
+      heightRange: searchParams.get('heightRange') || undefined,
     };
     
     const stats = storage.getTechniqueStats(filters);
