@@ -57,6 +57,14 @@ export default function JudokaPage() {
     }
   }, [selectedJudoka]);
 
+  const { data: statsData } = useQuery({
+    queryKey: ['stats'],
+    queryFn: async () => {
+      const { data } = await axios.get('/api/stats');
+      return data;
+    },
+  });
+
   const { data: searchData } = useQuery({
     queryKey: ['judoka-search', searchQuery],
     queryFn: async () => {
@@ -101,7 +109,14 @@ export default function JudokaPage() {
 
   return (
     <div className="container mx-auto px-6 py-10">
-      <h1 className="text-3xl font-semibold mb-10 text-gray-900">Judoka Statistics</h1>
+      <div className="flex justify-between items-center mb-10">
+        <h1 className="text-3xl font-semibold text-gray-900">Judoka Statistics</h1>
+        {statsData?.stats?.totalJudoka !== undefined && (
+          <div className="text-lg text-gray-600">
+            <span className="font-semibold text-gray-900">{statsData.stats.totalJudoka.toLocaleString()}</span> judoka in database
+          </div>
+        )}
+      </div>
 
       {!selectedJudoka ? (
         <div>

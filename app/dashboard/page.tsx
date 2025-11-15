@@ -194,10 +194,11 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
         <StatCard title="Total Competitions" value={stats.totalCompetitions} icon="🏆" />
         <StatCard title="Total Matches" value={stats.totalMatches} icon="🥋" />
         <StatCard title="Total Techniques" value={stats.totalTechniques} icon="🎯" />
+        <StatCard title="Total Judoka" value={stats.totalJudoka || 0} icon="👤" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">

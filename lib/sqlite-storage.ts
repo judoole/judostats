@@ -760,10 +760,21 @@ export class SqliteStorage {
       }
     });
     
+    // Count unique judoka
+    const uniqueJudokaIds = new Set<string>();
+    filteredTechniques.forEach(t => {
+      const id = (t.competitor_id || t.competitorId || '').toString();
+      if (id && id !== '0' && id !== '') {
+        uniqueJudokaIds.add(id);
+      }
+    });
+    const totalJudoka = uniqueJudokaIds.size;
+
     return {
       totalCompetitions,
       totalMatches,
       totalTechniques,
+      totalJudoka,
       topTechniques,
       competitionsByYear,
       techniquesByScoreGroup,
