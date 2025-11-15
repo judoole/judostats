@@ -247,6 +247,7 @@ export class JsonStorage {
       }
       if (filters.heightRange) {
         // Filter by judoka height range
+        const heightRange = filters.heightRange; // Store in const for type narrowing
         filteredTechniques = filteredTechniques.filter(t => {
           const competitorId = (t.competitor_id || t.competitorId || '').toString();
           if (!competitorId) return false;
@@ -254,7 +255,7 @@ export class JsonStorage {
           const profile = this.getJudokaProfile(competitorId);
           if (!profile || !profile.height) return false;
           
-          return this.heightMatchesRange(profile.height, filters.heightRange);
+          return this.heightMatchesRange(profile.height, heightRange);
         });
       }
     }
@@ -390,6 +391,7 @@ export class JsonStorage {
       }
       if (filters.heightRange) {
         // Filter by judoka height range
+        const heightRange = filters.heightRange; // Store in const for type narrowing
         filteredTechniques = filteredTechniques.filter(t => {
           const competitorId = (t.competitor_id || t.competitorId || '').toString();
           if (!competitorId) return false;
@@ -397,7 +399,7 @@ export class JsonStorage {
           const profile = this.getJudokaProfile(competitorId);
           if (!profile || !profile.height) return false;
           
-          return this.heightMatchesRange(profile.height, filters.heightRange);
+          return this.heightMatchesRange(profile.height, heightRange);
         });
       }
       if (filters.scoreGroup) {
