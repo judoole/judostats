@@ -35,6 +35,7 @@ interface JudokaStats {
   id: string;
   name: string;
   totalTechniques: number;
+  competitionCount?: number;
   wazaBreakdown: WazaBreakdown[];
   favoriteTechnique?: string;
   height?: number;
@@ -67,6 +68,14 @@ export default function JudokaPage() {
     queryKey: ['stats'],
     queryFn: async () => {
       const { data } = await axios.get('/api/stats');
+      return data;
+    },
+  });
+
+  const { data: topJudokaData } = useQuery({
+    queryKey: ['top-judoka'],
+    queryFn: async () => {
+      const { data } = await axios.get('/api/judoka?topStats=true');
       return data;
     },
   });
@@ -174,6 +183,110 @@ export default function JudokaPage() {
               <p className="text-yellow-800">No judoka found matching "{searchQuery}"</p>
             </div>
           )}
+
+          {/* Top Judoka Lists */}
+          {!searchQuery && topJudokaData?.topJudoka && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+              {/* Most Ippons */}
+              {topJudokaData.topJudoka.mostIppons && topJudokaData.topJudoka.mostIppons.length > 0 && (
+                <div className="bg-white p-6 rounded-lg border border-gray-200">
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900">🥇 Most Ippons</h3>
+                  <div className="space-y-2">
+                    {topJudokaData.topJudoka.mostIppons.map((judoka: any, index: number) => (
+                      <button
+                        key={judoka.id}
+                        onClick={() => handleSelectJudoka(judoka.id)}
+                        className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium text-gray-900">
+                            {index + 1}. {judoka.name}
+                          </span>
+                          <span className="text-gray-600 text-sm font-semibold">{judoka.count} ippons</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Most Techniques */}
+              {topJudokaData.topJudoka.mostTechniques && topJudokaData.topJudoka.mostTechniques.length > 0 && (
+                <div className="bg-white p-6 rounded-lg border border-gray-200">
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900">⚡ Most Waza Performed</h3>
+                  <div className="space-y-2">
+                    {topJudokaData.topJudoka.mostTechniques.map((judoka: any, index: number) => (
+                      <button
+                        key={judoka.id}
+                        onClick={() => handleSelectJudoka(judoka.id)}
+                        className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium text-gray-900">
+                            {index + 1}. {judoka.name}
+                          </span>
+                          <span className="text-gray-600 text-sm font-semibold">{judoka.count} techniques</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Hardest to Score Against */}
+              {topJudokaData.topJudoka.hardestToScoreAgainst && topJudokaData.topJudoka.hardestToScoreAgainst.length > 0 && (
+                <div className="bg-white p-6 rounded-lg border border-gray-200">
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900">🛡️ Hardest to Score Against</h3>
+                  <p className="text-xs text-gray-500 mb-3">(min. 5 competitions)</p>
+                  <div className="space-y-2">
+                    {topJudokaData.topJudoka.hardestToScoreAgainst.map((judoka: any, index: number) => (
+                      <button
+                        key={judoka.id}
+                        onClick={() => handleSelectJudoka(judoka.id)}
+                        className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium text-gray-900">
+                            {index + 1}. {judoka.name}
+                          </span>
+                          <div className="text-right">
+                            <div className="text-gray-600 text-sm font-semibold">{judoka.techniquesReceived} received</div>
+                            <div className="text-gray-500 text-xs">{judoka.competitions} competitions</div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Most Competitions */}
+              {topJudokaData.topJudoka.mostCompetitions && topJudokaData.topJudoka.mostCompetitions.length > 0 && (
+                <div className="bg-white p-6 rounded-lg border border-gray-200">
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900">🏆 Most Competitions</h3>
+                  <div className="space-y-2">
+                    {topJudokaData.topJudoka.mostCompetitions.map((judoka: any, index: number) => (
+                      <button
+                        key={judoka.id}
+                        onClick={() => handleSelectJudoka(judoka.id)}
+                        className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium text-gray-900">
+                            {index + 1}. {judoka.name}
+                          </span>
+                          <div className="text-right">
+                            <div className="text-gray-600 text-sm font-semibold">{judoka.competitions} competitions</div>
+                            <div className="text-gray-500 text-xs">{judoka.techniques} techniques</div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div>
@@ -196,6 +309,11 @@ export default function JudokaPage() {
                   <p className="text-gray-600">
                     Total scores collected: <span className="font-semibold text-gray-900">{judokaStats.stats.totalTechniques}</span>
                   </p>
+                  {judokaStats.stats.competitionCount !== undefined && (
+                    <p className="text-gray-600">
+                      Competitions participated: <span className="font-semibold text-gray-900">{judokaStats.stats.competitionCount}</span>
+                    </p>
+                  )}
                   {(judokaStats.stats.height || judokaStats.stats.age || judokaStats.stats.country || judokaStats.stats.favoriteTechnique) && (
                     <div className="flex gap-6 mt-4 text-sm text-gray-600 flex-wrap">
                       {judokaStats.stats.height && (

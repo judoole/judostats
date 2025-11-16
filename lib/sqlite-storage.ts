@@ -985,6 +985,123 @@ export class SqliteStorage {
     return height >= min && height < max;
   }
 
+  getTopJudokaStats() {
+    if (!this.db) {
+      return {
+        mostIppons: [],
+        mostTechniques: [],
+        hardestToScoreAgainst: [],
+        mostCompetitions: [],
+      };
+    }
+
+    // Most ippons
+    const mostIppons = this.db.prepare(`
+      SELECT 
+        t.competitor_id as id,
+        t.competitor_name as name,
+        COUNT(*) as ippon_count
+      FROM techniques t
+      WHERE t.score_group = 'Ippon'
+        AND LOWER(t.technique_name) NOT IN ('fusen-gachi', 'fusen gachi')
+        AND t.competitor_id IS NOT NULL
+        AND t.competitor_id != ''
+      GROUP BY t.competitor_id, t.competitor_name
+      ORDER BY ippon_count DESC
+      LIMIT 10
+    `).all() as Array<{ id: string; name: string; ippon_count: number }>;
+
+    // Most techniques performed
+    const mostTechniques = this.db.prepare(`
+      SELECT 
+        t.competitor_id as id,
+        t.competitor_name as name,
+        COUNT(*) as technique_count
+      FROM techniques t
+      WHERE LOWER(t.technique_name) NOT IN ('fusen-gachi', 'fusen gachi')
+        AND t.competitor_id IS NOT NULL
+        AND t.competitor_id != ''
+      GROUP BY t.competitor_id, t.competitor_name
+      ORDER BY technique_count DESC
+      LIMIT 10
+    `).all() as Array<{ id: string; name: string; technique_count: number }>;
+
+    // Hardest to score against (fewest techniques received, must have at least 5 competitions)
+    // Start with all judoka who participated in competitions, then count techniques received
+    const hardestToScoreAgainst = this.db.prepare(`
+      SELECT 
+        judoka.competitor_id as id,
+        judoka.competitor_name as name,
+        judoka.competition_count,
+        COALESCE(received.techniques_received, 0) as techniques_received
+      FROM (
+        SELECT 
+          competitor_id,
+          competitor_name,
+          COUNT(DISTINCT competition_id) as competition_count
+        FROM techniques
+        WHERE LOWER(technique_name) NOT IN ('fusen-gachi', 'fusen gachi')
+          AND competitor_id IS NOT NULL
+          AND competitor_id != ''
+        GROUP BY competitor_id, competitor_name
+        HAVING competition_count >= 5
+      ) judoka
+      LEFT JOIN (
+        SELECT 
+          opponent_id,
+          COUNT(*) as techniques_received
+        FROM techniques
+        WHERE LOWER(technique_name) NOT IN ('fusen-gachi', 'fusen gachi')
+          AND opponent_id IS NOT NULL
+          AND opponent_id != ''
+        GROUP BY opponent_id
+      ) received ON judoka.competitor_id = received.opponent_id
+      ORDER BY techniques_received ASC, judoka.competition_count DESC
+      LIMIT 10
+    `).all() as Array<{ id: string; name: string; competition_count: number; techniques_received: number }>;
+
+    // Most competitions participated in
+    const mostCompetitions = this.db.prepare(`
+      SELECT 
+        t.competitor_id as id,
+        t.competitor_name as name,
+        COUNT(DISTINCT t.competition_id) as competition_count,
+        COUNT(*) as technique_count
+      FROM techniques t
+      WHERE LOWER(t.technique_name) NOT IN ('fusen-gachi', 'fusen gachi')
+        AND t.competitor_id IS NOT NULL
+        AND t.competitor_id != ''
+      GROUP BY t.competitor_id, t.competitor_name
+      ORDER BY competition_count DESC, technique_count DESC
+      LIMIT 10
+    `).all() as Array<{ id: string; name: string; competition_count: number; technique_count: number }>;
+
+    return {
+      mostIppons: mostIppons.map(j => ({
+        id: j.id,
+        name: j.name || 'Unknown',
+        count: j.ippon_count,
+      })),
+      mostTechniques: mostTechniques.map(j => ({
+        id: j.id,
+        name: j.name || 'Unknown',
+        count: j.technique_count,
+      })),
+      hardestToScoreAgainst: hardestToScoreAgainst.map(j => ({
+        id: j.id,
+        name: j.name || 'Unknown',
+        competitions: j.competition_count,
+        techniquesReceived: j.techniques_received,
+      })),
+      mostCompetitions: mostCompetitions.map(j => ({
+        id: j.id,
+        name: j.name || 'Unknown',
+        competitions: j.competition_count,
+        techniques: j.technique_count,
+      })),
+    };
+  }
+
   getJudokaList(searchTerm?: string) {
     const techniques = this.getAllTechniques();
     const judokaMap = new Map<string, { id: string; name: string; totalTechniques: number }>();
@@ -1129,10 +1246,20 @@ export class SqliteStorage {
     // Favorite technique is the most frequently performed one
     const favoriteTechnique = wazaBreakdown.length > 0 ? wazaBreakdown[0].name : undefined;
     
+    // Count unique competitions
+    const uniqueCompetitions = new Set<number>();
+    filteredTechniques.forEach(tech => {
+      if (tech.competitionId) {
+        uniqueCompetitions.add(tech.competitionId);
+      }
+    });
+    const competitionCount = uniqueCompetitions.size;
+    
     return {
       id: judokaId,
       name,
       totalTechniques,
+      competitionCount,
       wazaBreakdown,
       favoriteTechnique,
       height: profile?.height,
