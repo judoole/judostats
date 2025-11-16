@@ -15,7 +15,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { limit, minYear, skipExisting, force, concurrent = 20 } = await request.json().catch(() => ({}));
+    const { 
+      limit, 
+      minYear, 
+      skipExisting, 
+      force, 
+      concurrent = 30,  // Concurrent competitions (each triggers multiple API calls)
+      profileConcurrent = 30  // Concurrent judoka profile requests
+    } = await request.json().catch(() => ({}));
 
     await storage.load();
 
@@ -224,14 +231,14 @@ export async function POST(request: Request) {
       ? judokaIdsArray 
       : judokaIdsArray.filter(id => !storage.getJudokaProfile(id));
 
-    console.log(`Fetching profiles for ${judokaIdsToFetch.length} judoka (${judokaIdsArray.length - judokaIdsToFetch.length} already have profiles)`);
-
     // Fetch profiles in parallel batches
     let fetched = 0;
     let skipped = judokaIdsArray.length - judokaIdsToFetch.length;
     let profileErrors = 0;
-    const PROFILE_CONCURRENT_REQUESTS = 20;
+    const PROFILE_CONCURRENT_REQUESTS = profileConcurrent;
     const SAVE_BATCH_SIZE = 50;
+
+    console.log(`Fetching profiles for ${judokaIdsToFetch.length} judoka (${judokaIdsArray.length - judokaIdsToFetch.length} already have profiles) with ${PROFILE_CONCURRENT_REQUESTS} concurrent requests`);
 
     for (let i = 0; i < judokaIdsToFetch.length; i += PROFILE_CONCURRENT_REQUESTS) {
       const batch = judokaIdsToFetch.slice(i, i + PROFILE_CONCURRENT_REQUESTS);
