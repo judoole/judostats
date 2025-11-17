@@ -43,7 +43,20 @@ export async function GET(request: Request) {
     const stats = storage.getTechniqueStats(filters);
     const availableFilters = storage.getAvailableFilters();
     
-    return NextResponse.json({ stats, availableFilters });
+    // Add caching headers
+    // For unfiltered queries, cache longer (1 hour)
+    // For filtered queries, cache shorter (5 minutes)
+    const hasFilters = Object.values(filters).some(v => v !== undefined);
+    const maxAge = hasFilters ? 300 : 3600; // 5 minutes or 1 hour
+    
+    return NextResponse.json(
+      { stats, availableFilters },
+      {
+        headers: {
+          'Cache-Control': `public, s-maxage=${maxAge}, stale-while-revalidate=600`,
+        },
+      }
+    );
   } catch (error) {
     console.error('Error fetching technique stats:', error);
     return NextResponse.json(

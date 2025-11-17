@@ -295,6 +295,9 @@ export async function POST(request: Request) {
     // Final save to ensure all profiles are persisted
     await storage.save();
 
+    // Refresh stats summary after crawl completion
+    storage.refreshStatsSummary();
+
     console.log(`✓ Profile fetching completed: ${fetched} fetched, ${skipped} skipped, ${profileErrors} errors`);
 
     return NextResponse.json({ 

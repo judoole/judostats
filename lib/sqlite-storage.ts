@@ -77,8 +77,17 @@ async function ensureDataDir() {
   }
 }
 
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
 export class SqliteStorage {
   private db: Database.Database | null = null;
+  private cache: Map<string, CacheEntry<any>> = new Map();
+  private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes default
+  private readonly CACHE_TTL_UNFILTERED_MS = 60 * 60 * 1000; // 1 hour for unfiltered queries
+  private competitionsCache: any[] | null = null; // Cache for parsed competitions
 
   private async init() {
     if (this.db) return;
@@ -146,6 +155,15 @@ export class SqliteStorage {
       )
     `);
 
+    // Stats summary table for pre-calculated aggregations
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS stats_summary (
+        filter_hash TEXT PRIMARY KEY,
+        stats_json TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Create indexes for better query performance
     this.db.exec(`CREATE INDEX IF NOT EXISTS idx_techniques_competition_id ON techniques(competition_id)`);
     this.db.exec(`CREATE INDEX IF NOT EXISTS idx_techniques_technique_name ON techniques(technique_name)`);
@@ -159,6 +177,66 @@ export class SqliteStorage {
     this.db.exec(`CREATE INDEX IF NOT EXISTS idx_techniques_technique_category ON techniques(technique_category)`);
     this.db.exec(`CREATE INDEX IF NOT EXISTS idx_techniques_score_group ON techniques(score_group)`);
     this.db.exec(`CREATE INDEX IF NOT EXISTS idx_judoka_profiles_height ON judoka_profiles(height)`);
+  }
+
+  private createStatsSummaryTable() {
+    if (!this.db) return;
+    // Table is already created in createTables(), this method is for clarity
+    // and potential future use if we need to recreate it
+  }
+
+  private getFilterHash(filters?: any): string {
+    // Create a hash from filter parameters
+    if (!filters || Object.keys(filters).length === 0) {
+      return 'no-filters';
+    }
+    // Sort keys for consistent hashing
+    const sortedKeys = Object.keys(filters).sort();
+    const filterString = sortedKeys.map(key => `${key}:${filters[key]}`).join('|');
+    // Simple hash function (could use crypto.createHash for production)
+    let hash = 0;
+    for (let i = 0; i < filterString.length; i++) {
+      const char = filterString.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return `filters-${Math.abs(hash)}`;
+  }
+
+  refreshStatsSummary(filters?: any) {
+    if (!this.db) return;
+    
+    try {
+      const filterHash = this.getFilterHash(filters);
+      const stats = this.getStats(filters);
+      const statsJson = JSON.stringify(stats);
+      
+      const stmt = this.db.prepare(`
+        INSERT OR REPLACE INTO stats_summary (filter_hash, stats_json, updated_at)
+        VALUES (?, ?, CURRENT_TIMESTAMP)
+      `);
+      stmt.run(filterHash, statsJson);
+    } catch (error) {
+      console.error('Error refreshing stats summary:', error);
+    }
+  }
+
+  getStatsFromSummary(filters?: any): any | null {
+    if (!this.db) return null;
+    
+    try {
+      const filterHash = this.getFilterHash(filters);
+      const stmt = this.db.prepare('SELECT stats_json FROM stats_summary WHERE filter_hash = ?');
+      const row = stmt.get(filterHash) as { stats_json: string } | undefined;
+      
+      if (row) {
+        return JSON.parse(row.stats_json);
+      }
+    } catch (error) {
+      console.error('Error getting stats from summary:', error);
+    }
+    
+    return null;
   }
 
   private migrateTable() {
@@ -231,10 +309,15 @@ export class SqliteStorage {
   getAllCompetitions(): any[] {
     if (!this.db) return [];
     
+    // Return cached competitions if available
+    if (this.competitionsCache !== null) {
+      return this.competitionsCache;
+    }
+    
     const stmt = this.db.prepare('SELECT * FROM competitions');
     const rows = stmt.all() as any[];
     
-    return rows.map(row => ({
+    const competitions = rows.map(row => ({
       id: row.id,
       competitionId: row.competition_id,
       name: row.name,
@@ -244,6 +327,15 @@ export class SqliteStorage {
       year: row.year || undefined,
       categories: row.categories_json ? JSON.parse(row.categories_json) : [],
     }));
+    
+    // Cache the parsed competitions
+    this.competitionsCache = competitions;
+    
+    return competitions;
+  }
+
+  invalidateCompetitionsCache() {
+    this.competitionsCache = null;
   }
 
   getCompetition(id: number): any | undefined {
@@ -285,6 +377,9 @@ export class SqliteStorage {
       competition.year || null,
       JSON.stringify(competition.categories || []),
     );
+    
+    // Invalidate competitions cache when competitions are added
+    this.invalidateCompetitionsCache();
   }
 
   async addCompetition(competition: any) {
@@ -726,6 +821,119 @@ export class SqliteStorage {
     return [undefined, undefined];
   }
 
+  private getCacheKey(operation: string, filters?: any): string {
+    const filterStr = filters ? JSON.stringify(filters) : 'no-filters';
+    return `${operation}:${filterStr}`;
+  }
+
+  private getFromCache<T>(key: string, ttlMs: number = this.CACHE_TTL_MS): T | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+    
+    const age = Date.now() - entry.timestamp;
+    if (age > ttlMs) {
+      this.cache.delete(key);
+      return null;
+    }
+    
+    return entry.data as T;
+  }
+
+  private setCache<T>(key: string, data: T): void {
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+    });
+  }
+
+  private clearCache(): void {
+    this.cache.clear();
+  }
+
+  private buildFilteredTechniquesQueryForAggregation(filters?: any): { query: string; params: any[] } {
+    if (!this.db) {
+      return { query: '', params: [] };
+    }
+
+    // Start with base query - exclude Fusen-Gachi
+    let query = `
+      FROM techniques t
+      WHERE LOWER(t.technique_name) NOT IN ('fusen-gachi', 'fusen gachi')
+    `;
+    const params: any[] = [];
+
+    // Add joins if needed for filtering
+    let needsCompetitionJoin = false;
+    let needsProfileJoin = false;
+
+    if (filters) {
+      if (filters.gender) {
+        query += ' AND LOWER(t.gender) = LOWER(?)';
+        params.push(filters.gender);
+      }
+      if (filters.weightClass) {
+        query += ' AND t.weight_class = ?';
+        params.push(filters.weightClass);
+      }
+      if (filters.eventType) {
+        query += ' AND LOWER(t.event_type) = LOWER(?)';
+        params.push(filters.eventType);
+      }
+      if (filters.competitionId) {
+        query += ' AND t.competition_id = ?';
+        params.push(filters.competitionId);
+      }
+      if (filters.year) {
+        needsCompetitionJoin = true;
+        query += ' AND c.year = ?';
+        params.push(filters.year);
+      }
+      if (filters.heightRange) {
+        needsProfileJoin = true;
+        const heightRange = filters.heightRange;
+        const [min, max] = this.parseHeightRange(heightRange);
+        if (min !== undefined) {
+          query += ' AND p.height >= ?';
+          params.push(min);
+        }
+        if (max !== undefined) {
+          query += ' AND p.height < ?';
+          params.push(max);
+        }
+      }
+      if (filters.techniqueCategory) {
+        const category = filters.techniqueCategory;
+        // Map display names to stored values
+        const categoryMap: Record<string, string> = {
+          'nage-waza': 'tachi-waza',
+          'osaekomi-waza': 'osaekomi',
+          'shime-waza': 'shime-waza',
+          'kansetsu-waza': 'kansetsu-waza',
+        };
+        const storedCategory = categoryMap[category] || category;
+        query += ' AND COALESCE(t.technique_category, \'tachi-waza\') = ?';
+        params.push(storedCategory);
+      }
+    }
+
+    // Add joins if needed
+    if (needsCompetitionJoin) {
+      query = query.replace('FROM techniques t', 'FROM techniques t INNER JOIN competitions c ON t.competition_id = c.competition_id');
+    }
+    if (needsProfileJoin) {
+      query = query.replace('FROM techniques t', 'FROM techniques t INNER JOIN judoka_profiles p ON t.competitor_id = p.id');
+      if (needsCompetitionJoin) {
+        // Both joins needed - adjust the query
+        query = query.replace(
+          'FROM techniques t INNER JOIN competitions c ON t.competition_id = c.competition_id',
+          'FROM techniques t INNER JOIN competitions c ON t.competition_id = c.competition_id INNER JOIN judoka_profiles p ON t.competitor_id = p.id'
+        );
+      }
+    }
+
+    return { query, params };
+  }
+
   getStats(filters?: any) {
     if (!this.db) {
       return {
@@ -740,41 +948,97 @@ export class SqliteStorage {
       };
     }
 
-    // Build filtered query
-    const { query, params } = this.buildFilteredTechniquesQuery(filters);
-    const stmt = this.db.prepare(query);
-    const rows = stmt.all(...params) as any[];
-    const filteredTechniques = rows.map(row => this.mapRowToTechnique(row));
+    // Check cache first
+    const cacheKey = this.getCacheKey('stats', filters);
+    const hasFilters = filters && Object.keys(filters).length > 0;
+    const ttl = hasFilters ? this.CACHE_TTL_MS : this.CACHE_TTL_UNFILTERED_MS;
+    const cached = this.getFromCache<any>(cacheKey, ttl);
+    if (cached) {
+      return cached;
+    }
+
+    // Build base WHERE clause for filtering
+    const { query: whereClause, params } = this.buildFilteredTechniquesQueryForAggregation(filters);
     
-    // Get competitions for match counting (only if not filtered by competitionId)
+    // Get total techniques count (aggregated in SQL)
+    const totalTechniquesQuery = `SELECT COUNT(*) as count ${whereClause}`;
+    const totalTechniquesResult = this.db.prepare(totalTechniquesQuery).get(...params) as { count: number };
+    const totalTechniques = totalTechniquesResult.count;
+    
+    // Get total unique judoka (aggregated in SQL)
+    const totalJudokaQuery = `SELECT COUNT(DISTINCT t.competitor_id) as count ${whereClause} AND t.competitor_id IS NOT NULL AND t.competitor_id != ''`;
+    const totalJudokaResult = this.db.prepare(totalJudokaQuery).get(...params) as { count: number };
+    const totalJudoka = totalJudokaResult.count || 0;
+    
+    // Get top techniques with counts and average scores (aggregated in SQL)
+    const topTechniquesQuery = `
+      SELECT 
+        t.technique_name as name,
+        COUNT(*) as count,
+        AVG(t.score) as avgScore
+      ${whereClause}
+      GROUP BY t.technique_name
+      ORDER BY count DESC
+      LIMIT 50
+    `;
+    const topTechniquesRows = this.db.prepare(topTechniquesQuery).all(...params) as Array<{ name: string; count: number; avgScore: number }>;
+    const topTechniques = topTechniquesRows.map(row => ({
+      name: row.name || 'Unknown',
+      count: row.count,
+      avgScore: row.avgScore || 0,
+    }));
+    
+    // Get techniques by score group (aggregated in SQL)
+    const scoreGroupQuery = `
+      SELECT 
+        COALESCE(t.score_group, 'Unknown') as score_group,
+        COUNT(*) as count
+      ${whereClause}
+      GROUP BY score_group
+      ORDER BY 
+        CASE score_group
+          WHEN 'Ippon' THEN 1
+          WHEN 'Waza-ari' THEN 2
+          WHEN 'Yuko' THEN 3
+          ELSE 99
+        END
+    `;
+    const scoreGroupRows = this.db.prepare(scoreGroupQuery).all(...params) as Array<{ score_group: string; count: number }>;
+    const techniquesByScoreGroup = scoreGroupRows.map(row => ({
+      group: row.score_group,
+      count: row.count,
+    }));
+    
+    // Get top techniques by score group (aggregated in SQL)
+    const topTechniquesByGroup: Record<string, Array<{ name: string; count: number }>> = {};
+    
+    for (const group of ['Ippon', 'Waza-ari', 'Yuko']) {
+      const groupQuery = `
+        SELECT 
+          t.technique_name as name,
+          COUNT(*) as count
+        ${whereClause}
+        AND COALESCE(t.score_group, 'Unknown') = ?
+        GROUP BY t.technique_name
+        ORDER BY count DESC
+        LIMIT 20
+      `;
+      const groupRows = this.db.prepare(groupQuery).all(...params, group) as Array<{ name: string; count: number }>;
+      if (groupRows.length > 0) {
+        topTechniquesByGroup[group] = groupRows.map(row => ({
+          name: row.name || 'Unknown',
+          count: row.count,
+        }));
+      }
+    }
+    
+    // Get competitions for match counting and year stats
     const competitions = this.getAllCompetitions();
-    
-    // Calculate stats
-    const totalTechniques = filteredTechniques.length;
     const totalMatches = competitions.reduce(
       (sum, comp) => sum + (comp.categories || []).reduce((s: number, cat: any) => s + (cat.matches?.length || 0), 0),
       0
     );
     const totalCompetitions = competitions.length;
-    
-    // Top techniques
-    const techniqueCounts: Record<string, { count: number; totalScore: number }> = {};
-    filteredTechniques.forEach((tech) => {
-      const name = tech.techniqueName || tech.technique_name || 'Unknown';
-      if (!techniqueCounts[name]) {
-        techniqueCounts[name] = { count: 0, totalScore: 0 };
-      }
-      techniqueCounts[name].count++;
-      techniqueCounts[name].totalScore += tech.score || 0;
-    });
-    
-    const topTechniques = Object.entries(techniqueCounts)
-      .map(([name, data]) => ({
-        name,
-        count: data.count,
-        avgScore: data.totalScore / data.count,
-      }))
-      .sort((a, b) => b.count - a.count);
     
     // Competitions by year
     const byYear: Record<number, number> = {};
@@ -787,57 +1051,8 @@ export class SqliteStorage {
     const competitionsByYear = Object.entries(byYear)
       .map(([year, count]) => ({ year: parseInt(year), count }))
       .sort((a, b) => b.year - a.year);
-    
-    // Group techniques by score group
-    const byScoreGroup: Record<string, number> = {};
-    filteredTechniques.forEach((tech) => {
-      const group = tech.score_group || tech.scoreGroup || 'Unknown';
-      byScoreGroup[group] = (byScoreGroup[group] || 0) + 1;
-    });
-    
-    const techniquesByScoreGroup = Object.entries(byScoreGroup)
-      .map(([group, count]) => ({ group, count }))
-      .sort((a, b) => {
-        const order: Record<string, number> = { 'Ippon': 1, 'Waza-ari': 2, 'Yuko': 3 };
-        const aOrder = order[a.group] || 99;
-        const bOrder = order[b.group] || 99;
-        return aOrder - bOrder;
-      });
-    
-    // Top techniques by score group
-    const topTechniquesByGroup: Record<string, Array<{ name: string; count: number }>> = {};
-    
-    ['Ippon', 'Waza-ari', 'Yuko'].forEach((group) => {
-      const groupTechniques = filteredTechniques.filter((tech) => 
-        (tech.score_group || tech.scoreGroup) === group
-      );
-      
-      const techniqueCounts: Record<string, number> = {};
-      groupTechniques.forEach((tech) => {
-        const name = tech.techniqueName || tech.technique_name || 'Unknown';
-        techniqueCounts[name] = (techniqueCounts[name] || 0) + 1;
-      });
-      
-      const all = Object.entries(techniqueCounts)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count);
-      
-      if (all.length > 0) {
-        topTechniquesByGroup[group] = all;
-      }
-    });
-    
-    // Count unique judoka
-    const uniqueJudokaIds = new Set<string>();
-    filteredTechniques.forEach(t => {
-      const id = (t.competitor_id || t.competitorId || '').toString();
-      if (id && id !== '0' && id !== '') {
-        uniqueJudokaIds.add(id);
-      }
-    });
-    const totalJudoka = uniqueJudokaIds.size;
 
-    return {
+    const result = {
       totalCompetitions,
       totalMatches,
       totalTechniques,
@@ -847,6 +1062,11 @@ export class SqliteStorage {
       techniquesByScoreGroup,
       topTechniquesByGroup,
     };
+
+    // Cache the result
+    this.setCache(cacheKey, result);
+
+    return result;
   }
 
   getTechniqueStats(filters?: any) {
@@ -854,83 +1074,156 @@ export class SqliteStorage {
       return [];
     }
 
-    // Build filtered query with scoreGroup filter if needed
-    let { query, params } = this.buildFilteredTechniquesQuery(filters);
+    // Check cache first
+    const cacheKey = this.getCacheKey('technique-stats', filters);
+    const hasFilters = filters && Object.keys(filters).length > 0;
+    const ttl = hasFilters ? this.CACHE_TTL_MS : this.CACHE_TTL_UNFILTERED_MS;
+    const cached = this.getFromCache<any[]>(cacheKey, ttl);
+    if (cached) {
+      return cached;
+    }
+
+    // Build base WHERE clause for filtering
+    let { query: whereClause, params: baseParams } = this.buildFilteredTechniquesQueryForAggregation(filters);
     
     // Add scoreGroup filter if specified
+    let params = [...baseParams];
     if (filters?.scoreGroup) {
-      query += ' AND t.score_group = ?';
+      whereClause += ' AND t.score_group = ?';
       params.push(filters.scoreGroup);
     }
     
-    const stmt = this.db.prepare(query);
-    const rows = stmt.all(...params) as any[];
-    const filteredTechniques = rows.map(row => this.mapRowToTechnique(row));
+    // Aggregate technique stats in SQL
+    const techniqueStatsQuery = `
+      SELECT 
+        t.technique_name as name,
+        COUNT(*) as total,
+        SUM(CASE WHEN COALESCE(t.score_group, 'Unknown') = 'Ippon' THEN 1 ELSE 0 END) as ippon,
+        SUM(CASE WHEN COALESCE(t.score_group, 'Unknown') = 'Waza-ari' THEN 1 ELSE 0 END) as wazaAri,
+        SUM(CASE WHEN COALESCE(t.score_group, 'Unknown') = 'Yuko' THEN 1 ELSE 0 END) as yuko,
+        AVG(t.score) as avgScore
+      ${whereClause}
+      GROUP BY t.technique_name
+      ORDER BY total DESC
+    `;
     
-    const techniqueStats: Record<string, { total: number; ippon: number; wazaAri: number; yuko: number; avgScore: number }> = {};
+    const statsRows = this.db.prepare(techniqueStatsQuery).all(...params) as Array<{
+      name: string;
+      total: number;
+      ippon: number;
+      wazaAri: number;
+      yuko: number;
+      avgScore: number;
+    }>;
     
-    filteredTechniques.forEach((tech) => {
-      const name = tech.techniqueName || tech.technique_name || 'Unknown';
-      const scoreGroup = tech.score_group || tech.scoreGroup || 'Unknown';
-      const score = tech.score || 0;
-      
-      if (!techniqueStats[name]) {
-        techniqueStats[name] = { total: 0, ippon: 0, wazaAri: 0, yuko: 0, avgScore: 0 };
-      }
-      
-      techniqueStats[name].total++;
-      
-      if (scoreGroup === 'Ippon') techniqueStats[name].ippon++;
-      else if (scoreGroup === 'Waza-ari') techniqueStats[name].wazaAri++;
-      else if (scoreGroup === 'Yuko') techniqueStats[name].yuko++;
-      
-      techniqueStats[name].avgScore = (techniqueStats[name].avgScore * (techniqueStats[name].total - 1) + score) / techniqueStats[name].total;
-    });
+    const stats = statsRows.map(row => ({
+      name: row.name || 'Unknown',
+      total: row.total,
+      ippon: row.ippon || 0,
+      wazaAri: row.wazaAri || 0,
+      yuko: row.yuko || 0,
+      avgScore: row.avgScore || 0,
+    }));
     
-    const stats = Object.entries(techniqueStats)
-      .map(([name, data]) => ({ name, ...data }))
-      .sort((a, b) => b.total - a.total);
-    
+    // Cache the result
+    this.setCache(cacheKey, stats);
+
     return stats;
   }
 
   getAvailableFilters() {
-    const techniques = this.getAllTechniques();
-    const competitions = this.getAllCompetitions();
+    if (!this.db) {
+      return {
+        genders: [],
+        weightClasses: [],
+        eventTypes: [],
+        techniqueCategories: [],
+        years: [],
+        heightRanges: [],
+      };
+    }
+
+    // Check cache first (filters don't change often)
+    const cacheKey = this.getCacheKey('available-filters');
+    const cached = this.getFromCache<any>(cacheKey, this.CACHE_TTL_UNFILTERED_MS);
+    if (cached) {
+      return cached;
+    }
+
+    // Use SQL DISTINCT queries instead of loading all data
+    const gendersQuery = `
+      SELECT DISTINCT gender 
+      FROM techniques 
+      WHERE gender IS NOT NULL AND gender != ''
+      ORDER BY gender
+    `;
+    const genders = (this.db.prepare(gendersQuery).all() as Array<{ gender: string }>)
+      .map(row => row.gender);
+
+    const weightClassesQuery = `
+      SELECT DISTINCT weight_class 
+      FROM techniques 
+      WHERE weight_class IS NOT NULL AND weight_class != ''
+      ORDER BY weight_class
+    `;
+    const weightClasses = (this.db.prepare(weightClassesQuery).all() as Array<{ weight_class: string }>)
+      .map(row => row.weight_class);
+
+    const eventTypesQuery = `
+      SELECT DISTINCT event_type 
+      FROM techniques 
+      WHERE event_type IS NOT NULL AND event_type != ''
+      ORDER BY event_type
+    `;
+    const eventTypes = (this.db.prepare(eventTypesQuery).all() as Array<{ event_type: string }>)
+      .map(row => row.event_type);
+
+    const techniqueCategoriesQuery = `
+      SELECT DISTINCT COALESCE(technique_category, 'tachi-waza') as category
+      FROM techniques 
+      WHERE technique_category IS NOT NULL OR technique_category IS NULL
+      ORDER BY category
+    `;
+    const techniqueCategories = (this.db.prepare(techniqueCategoriesQuery).all() as Array<{ category: string }>)
+      .map(row => row.category);
+
+    const yearsQuery = `
+      SELECT DISTINCT year 
+      FROM competitions 
+      WHERE year IS NOT NULL 
+      ORDER BY year DESC
+    `;
+    const years = (this.db.prepare(yearsQuery).all() as Array<{ year: number }>)
+      .map(row => row.year);
+
+    // Get heights using SQL JOIN instead of N+1 queries
+    const heightsQuery = `
+      SELECT DISTINCT p.height
+      FROM techniques t
+      INNER JOIN judoka_profiles p ON t.competitor_id = p.id
+      WHERE p.height IS NOT NULL
+        AND t.competitor_id IS NOT NULL
+        AND t.competitor_id != ''
+        AND LOWER(t.technique_name) NOT IN ('fusen-gachi', 'fusen gachi')
+      ORDER BY p.height
+    `;
+    const heightsRows = this.db.prepare(heightsQuery).all() as Array<{ height: number }>;
+    const heights = heightsRows.map(row => row.height);
     
-    const genders = new Set(techniques.map(t => t.gender).filter(Boolean));
-    const weightClasses = new Set(techniques.map(t => t.weightClass).filter(Boolean));
-    const eventTypes = new Set(techniques.map(t => t.eventType).filter(Boolean));
-    const techniqueCategories = new Set(techniques.map(t => t.technique_category || t.techniqueCategory || 'tachi-waza').filter(Boolean));
-    const years = Array.from(new Set(competitions.map(c => c.year).filter(Boolean))).sort((a, b) => (b || 0) - (a || 0));
-    
-    // Get available height ranges from judoka profiles using percentiles
-    const heights = new Set<number>();
-    techniques.forEach(t => {
-      const competitorId = (t.competitor_id || t.competitorId || '').toString();
-      if (competitorId) {
-        const profile = this.getJudokaProfile(competitorId);
-        if (profile?.height) {
-          heights.add(profile.height);
-        }
-      }
-    });
-    
-    // Create percentile-based height ranges (same logic as JsonStorage)
+    // Create percentile-based height ranges (same logic as before)
     const heightRanges: string[] = [];
-    const sortedHeights = Array.from(heights).sort((a, b) => a - b);
-    if (sortedHeights.length > 0) {
-      const len = sortedHeights.length;
-      const p10 = sortedHeights[Math.floor(len * 0.1)];
-      const p25 = sortedHeights[Math.floor(len * 0.25)];
-      const p35 = sortedHeights[Math.floor(len * 0.35)];
-      const p40 = sortedHeights[Math.floor(len * 0.4)];
-      const p50 = sortedHeights[Math.floor(len * 0.5)];
-      const p60 = sortedHeights[Math.floor(len * 0.6)];
-      const p70 = sortedHeights[Math.floor(len * 0.7)];
-      const p75 = sortedHeights[Math.floor(len * 0.75)];
-      const p80 = sortedHeights[Math.floor(len * 0.8)];
-      const p90 = sortedHeights[Math.floor(len * 0.9)];
+    if (heights.length > 0) {
+      const len = heights.length;
+      const p10 = heights[Math.floor(len * 0.1)];
+      const p25 = heights[Math.floor(len * 0.25)];
+      const p35 = heights[Math.floor(len * 0.35)];
+      const p40 = heights[Math.floor(len * 0.4)];
+      const p50 = heights[Math.floor(len * 0.5)];
+      const p60 = heights[Math.floor(len * 0.6)];
+      const p70 = heights[Math.floor(len * 0.7)];
+      const p75 = heights[Math.floor(len * 0.75)];
+      const p80 = heights[Math.floor(len * 0.8)];
+      const p90 = heights[Math.floor(len * 0.9)];
       
       if (p10 !== undefined) heightRanges.push(`<${p10}`);
       if (p10 !== undefined && p25 !== undefined && p10 !== p25) heightRanges.push(`${p10}-${p25}`);
@@ -954,14 +1247,19 @@ export class SqliteStorage {
       if (p90 !== undefined) heightRanges.push(`>=${p90}`);
     }
     
-    return {
-      genders: Array.from(genders) as string[],
-      weightClasses: Array.from(weightClasses) as string[],
-      eventTypes: Array.from(eventTypes) as string[],
-      techniqueCategories: Array.from(techniqueCategories) as string[],
+    const result = {
+      genders: genders as string[],
+      weightClasses: weightClasses as string[],
+      eventTypes: eventTypes as string[],
+      techniqueCategories: techniqueCategories as string[],
       years: years as number[],
       heightRanges: heightRanges,
     };
+
+    // Cache the result
+    this.setCache(cacheKey, result);
+
+    return result;
   }
 
   private heightMatchesRange(height: number, range: string): boolean {

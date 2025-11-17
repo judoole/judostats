@@ -92,7 +92,6 @@ export default function Dashboard() {
       const { data } = await axios.get(`/api/stats?${filterParams.toString()}`);
       return data;
     },
-    refetchInterval: 5000,
   });
 
   const stats = response?.stats;

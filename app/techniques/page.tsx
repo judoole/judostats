@@ -197,7 +197,6 @@ export default function TechniquesPage() {
       const { data } = await axios.get(`/api/technique-stats?${filterParams.toString()}`);
       return data;
     },
-    refetchInterval: 5000,
   });
 
   const techniques = response?.stats || [];
