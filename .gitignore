@@ -41,7 +41,9 @@ yarn-error.log*
 next-env.d.ts
 
 # data files
-# Data files are gitignored but copied during Vercel deployment
+# Database and backup files are gitignored
+# Note: Database file is deployed via Vercel CLI (deploy.sh) even though gitignored
+# Vercel CLI includes gitignored files when deploying from local directory
 /data
 .backup/
 

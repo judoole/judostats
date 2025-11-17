@@ -93,6 +93,11 @@ export class SqliteStorage {
     if (this.db) return;
     
     await ensureDataDir();
+    
+    // Use the database file directly (same as JSON files were used)
+    // On Vercel, the database file is deployed via CLI (even though gitignored)
+    // Since the app is read-only on Vercel (crawler disabled), SQLite should work fine
+    // If SQLite needs write access for WAL files, it will fail and we can handle it then
     this.db = new Database(DB_PATH);
     this.createTables();
   }
