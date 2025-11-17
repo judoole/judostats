@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { JsonStorage } from '@/lib/storage';
+import { createStorage } from '@/lib/storage';
 
-const storage = new JsonStorage();
+const storage = createStorage();
 
 export async function GET(request: Request) {
   try {
@@ -49,17 +49,28 @@ export async function GET(request: Request) {
       };
       
       const stats = storage.getJudokaStats(judokaId, filters);
+      const techniquesReceived = storage.getTechniquesReceivedByJudoka(judokaId, filters);
       
       if (!stats) {
         return NextResponse.json({ error: 'Judoka not found' }, { status: 404 });
       }
       
-      return NextResponse.json({ stats });
+      return NextResponse.json({ 
+        stats,
+        techniquesReceived,
+      });
     } else if (searchTerm) {
       // Search for judoka by name
       const judokaList = storage.getJudokaList(searchTerm);
       return NextResponse.json({ judokaList });
     } else {
+      // Check if requesting top judoka stats
+      const topStats = searchParams.get('topStats');
+      if (topStats === 'true') {
+        const topJudoka = storage.getTopJudokaStats();
+        return NextResponse.json({ topJudoka });
+      }
+      
       // Get all judoka (limited list)
       const judokaList = storage.getJudokaList();
       return NextResponse.json({ judokaList: judokaList.slice(0, 100) }); // Limit to first 100 for performance

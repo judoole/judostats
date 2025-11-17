@@ -32,15 +32,17 @@ export default function TechniqueDetailPage() {
   const [selectedWeightClass, setSelectedWeightClass] = useState<string>('');
   const [selectedScoreGroup, setSelectedScoreGroup] = useState<string>('');
   const [selectedHeightRange, setSelectedHeightRange] = useState<string>('');
+  const [selectedTechniqueCategory, setSelectedTechniqueCategory] = useState<string>('');
 
   const filterParams = new URLSearchParams();
   if (selectedGender) filterParams.append('gender', selectedGender);
   if (selectedWeightClass) filterParams.append('weightClass', selectedWeightClass);
   if (selectedScoreGroup) filterParams.append('scoreGroup', selectedScoreGroup);
   if (selectedHeightRange) filterParams.append('heightRange', selectedHeightRange);
+  if (selectedTechniqueCategory) filterParams.append('techniqueCategory', selectedTechniqueCategory);
 
   const { data: response, isLoading } = useQuery({
-    queryKey: ['technique-detail', decodedName, selectedGender, selectedWeightClass, selectedScoreGroup, selectedHeightRange],
+    queryKey: ['technique-detail', decodedName, selectedGender, selectedWeightClass, selectedScoreGroup, selectedHeightRange, selectedTechniqueCategory],
     queryFn: async () => {
       const { data } = await axios.get(`/api/techniques/${encodeURIComponent(decodedName)}?${filterParams.toString()}`);
       return data;
@@ -124,6 +126,17 @@ export default function TechniqueDetailPage() {
                 {range.replace('<', '< ').replace('>=', '≥ ')} cm
               </option>
             ))}
+          </select>
+          <select
+            value={selectedTechniqueCategory}
+            onChange={(e) => setSelectedTechniqueCategory(e.target.value)}
+            className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
+          >
+            <option value="">All waza</option>
+            <option value="nage-waza">Nage-waza</option>
+            <option value="osaekomi-waza">Osaekomi-waza</option>
+            <option value="shime-waza">Shime-waza</option>
+            <option value="kansetsu-waza">Kansetsu-waza</option>
           </select>
         </div>
       </div>

@@ -191,20 +191,109 @@ export class IJFClient {
 
     const techniques: any[] = [];
 
+    // Helper to find opponent
+    const findOpponent = (competitorId: number | string | undefined) => {
+      if (!competitorId) {
+        return null;
+      }
+      
+      // Try person1/person2 structure first (if available)
+      if (matchDetails.person1 && matchDetails.person2) {
+        const person1Id = matchDetails.person1.id_person;
+        const person2Id = matchDetails.person2.id_person;
+        
+        // Convert to numbers for comparison (handle both string and number IDs)
+        const competitorIdNum = typeof competitorId === 'string' ? parseInt(competitorId, 10) : competitorId;
+        const person1IdNum = typeof person1Id === 'string' ? parseInt(person1Id, 10) : person1Id;
+        const person2IdNum = typeof person2Id === 'string' ? parseInt(person2Id, 10) : person2Id;
+        
+        if (competitorIdNum === person1IdNum) {
+          return {
+            id: person2IdNum,
+            name: matchDetails.person2.nm,
+            country: matchDetails.person2.cntr || matchDetails.person2.cnt,
+          };
+        } else if (competitorIdNum === person2IdNum) {
+          return {
+            id: person1IdNum,
+            name: matchDetails.person1.nm,
+            country: matchDetails.person1.cntr || matchDetails.person1.cnt,
+          };
+        }
+      }
+      
+      // Fall back to blue/white structure (id_person_blue, id_person_white)
+      const idPersonBlue = (matchDetails as any).id_person_blue;
+      const idPersonWhite = (matchDetails as any).id_person_white;
+      
+      if (idPersonBlue && idPersonWhite) {
+        const competitorIdNum = typeof competitorId === 'string' ? parseInt(competitorId, 10) : competitorId;
+        const blueIdNum = typeof idPersonBlue === 'string' ? parseInt(idPersonBlue, 10) : idPersonBlue;
+        const whiteIdNum = typeof idPersonWhite === 'string' ? parseInt(idPersonWhite, 10) : idPersonWhite;
+        
+        if (competitorIdNum === blueIdNum) {
+          return {
+            id: whiteIdNum,
+            name: (matchDetails as any).person_white || `${(matchDetails as any).family_name_white || ''} ${(matchDetails as any).given_name_white || ''}`.trim(),
+            country: (matchDetails as any).country_white || (matchDetails as any).country_short_white,
+          };
+        } else if (competitorIdNum === whiteIdNum) {
+          return {
+            id: blueIdNum,
+            name: (matchDetails as any).person_blue || `${(matchDetails as any).family_name_blue || ''} ${(matchDetails as any).given_name_blue || ''}`.trim(),
+            country: (matchDetails as any).country_blue || (matchDetails as any).country_short_blue,
+          };
+        }
+      }
+      
+      return null;
+    };
+
+    // Ne-waza technique lists
+    const osaekomiTechniques = [
+      'kesa-gatame', 'yoko-shiho-gatame', 'kata-gatame', 'kami-shiho-gatame',
+      'tate-shiho-gatame', 'kuzure-kami-shiho-gatame', 'kuzure-kesa-gatame',
+      'ushiro-kesa-gatame', 'ura-gatame'
+    ];
+    
+    const shimeWazaTechniques = [
+      'juji-gatame', 'hadaka-jime', 'katame-jime', 'katate-jime',
+      'okuri-eri-jime', 'sankaku-jime', 'sankaku-gatame',
+      'jigoku-jime', 'sode-guruma-jime'
+    ];
+    
+    const kansetsuWazaTechniques = [
+      'ude-garami', 'ashi-garami', 'ude-jime'
+    ];
+
     for (const event of matchDetails.events) {
       // Skip events without tags
       if (!event.tags || !Array.isArray(event.tags) || event.tags.length === 0) {
         continue;
       }
 
+      // Check if this is a penalty event FIRST - skip penalties entirely
+      const isPenalty = event.tags.some((tag: any) => 
+        tag.group_name?.toLowerCase().includes('shido') ||
+        tag.group_name?.toLowerCase().includes('non-combativity') ||
+        tag.name?.toLowerCase().includes('shido') ||
+        tag.code_short?.toLowerCase().includes('shido')
+      );
+      
+      if (isPenalty) {
+        continue; // Skip penalty events - don't add them as techniques
+      }
+
+      // Check for osaekomi tag (holding/pinning) - but only if not a penalty
+      const hasOsaekomiTag = event.tags.some((tag: any) => 
+        tag.code_short === 'osaekomi' || tag.name?.toLowerCase().includes('osaekomi')
+      );
+
       // Extract technique name from tags (find the non-direction tag)
-      // Filter out: directions (left/right), penalties (shido), and Osaekomi tags
+      // Filter out: directions (left/right)
       const techniqueTags = event.tags.filter((tag: any) => 
         tag.code_short !== 'left' && 
-        tag.code_short !== 'right' &&
-        tag.code_short !== 'osaekomi' &&
-        !tag.group_name?.toLowerCase().includes('shido') &&
-        !tag.group_name?.toLowerCase().includes('non-combativity')
+        tag.code_short !== 'right'
       );
       
       if (techniqueTags.length === 0) {
@@ -218,32 +307,42 @@ export class IJFClient {
         continue;
       }
       
-      // Skip Osaekomi techniques (holding/pinning techniques)
-      const isOsaekomi = [
-        'kesa-gatame', 'yoko-shiho-gatame', 'kata-gatame', 'kami-shiho-gatame',
-        'tate-shiho-gatame', 'kuzure-kami-shiho-gatame', 'kuzure-kesa-gatame',
-        'ushiro-kesa-gatame', 'ura-gatame',
-        'juji-gatame', 'hadaka-jime', 'katame-jime', 'katate-jime',
-        'okuri-eri-jime', 'sankaku-jime', 'sankaku-gatame',
-        'ude-garami', 'ashi-garami', 'ude-jime',
-        'jigoku-jime', 'sode-guruma-jime'
-      ].includes(techniqueName.toLowerCase());
+      // Get score and score group to verify this is not a penalty
+      const score = this.getScoreFromEventType(event);
+      const scoreGroup = this.getScoreGroupFromEvent(event, score);
       
-      if (isOsaekomi) {
+      // Skip if this is a penalty (double-check)
+      if (score < 0 || scoreGroup === 'Penalty') {
         continue;
       }
+      
+      // Determine technique category
+      const techniqueNameLower = techniqueName.toLowerCase();
+      let techniqueCategory = 'tachi-waza'; // Default to standing techniques
+      
+      // Only categorize as osaekomi if it's actually a valid osaekomi technique
+      // and not a penalty (which might have "Osaekomi" in the name)
+      if (osaekomiTechniques.includes(techniqueNameLower) || (hasOsaekomiTag && score >= 0)) {
+        techniqueCategory = 'osaekomi';
+      } else if (shimeWazaTechniques.includes(techniqueNameLower)) {
+        techniqueCategory = 'shime-waza';
+      } else if (kansetsuWazaTechniques.includes(techniqueNameLower)) {
+        techniqueCategory = 'kansetsu-waza';
+      }
+
+      // Extract side (left/right) from direction tags
       const directionTags = event.tags.filter((tag: any) => 
         tag.code_short === 'left' || tag.code_short === 'right'
       );
-      const side = directionTags.length > 0 ? directionTags[0].name : '';
+      const side = directionTags.length > 0 ? directionTags[0].name.toLowerCase() : '';
 
       // Extract competitor info from actors
       const actor = event.actors?.[0];
       const competitorId = actor?.id_person;
       const competitorName = actor ? `${actor.family_name} ${actor.given_name}` : '';
       
-      const score = this.getScoreFromEventType(event);
-      const scoreGroup = this.getScoreGroupFromEvent(event, score);
+      // Find opponent
+      const opponent = findOpponent(competitorId);
 
       techniques.push({
         event_type: event.id_contest_event_type || event.type,
@@ -255,7 +354,11 @@ export class IJFClient {
         competitor_name: competitorName,
         technique_name: techniqueName,
         technique_type: '',  // Could extract from tags if needed
+        technique_category: techniqueCategory,
         side: side,
+        opponent_id: opponent?.id,
+        opponent_name: opponent?.name,
+        opponent_country: opponent?.country,
       });
     }
 

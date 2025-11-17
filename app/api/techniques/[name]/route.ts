@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { JsonStorage } from '@/lib/storage';
+import { createStorage } from '@/lib/storage';
 
-const storage = new JsonStorage();
+const storage = createStorage();
 
 export async function GET(
   request: Request,
@@ -59,6 +59,7 @@ export async function GET(
       year,
       scoreGroup: scoreGroupParam || undefined,
       heightRange: searchParams.get('heightRange') || undefined,
+      techniqueCategory: searchParams.get('techniqueCategory') || undefined,
     };
     
     await storage.load();

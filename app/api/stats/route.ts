@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { JsonStorage } from '@/lib/storage';
+import { createStorage } from '@/lib/storage';
 
-const storage = new JsonStorage();
+const storage = createStorage();
 
 export async function GET(request: Request) {
   try {
@@ -37,12 +37,26 @@ export async function GET(request: Request) {
       competitionId,
       year,
       heightRange: searchParams.get('heightRange') || undefined,
+      techniqueCategory: searchParams.get('techniqueCategory') || undefined,
     };
     
     const stats = storage.getStats(filters);
     const availableFilters = storage.getAvailableFilters();
     
-    return NextResponse.json({ stats, availableFilters });
+    // Add caching headers
+    // For unfiltered queries, cache longer (1 hour)
+    // For filtered queries, cache shorter (5 minutes)
+    const hasFilters = Object.values(filters).some(v => v !== undefined);
+    const maxAge = hasFilters ? 300 : 3600; // 5 minutes or 1 hour
+    
+    return NextResponse.json(
+      { stats, availableFilters },
+      {
+        headers: {
+          'Cache-Control': `public, s-maxage=${maxAge}, stale-while-revalidate=600`,
+        },
+      }
+    );
   } catch (error) {
     console.error('Error fetching stats:', error);
     return NextResponse.json(

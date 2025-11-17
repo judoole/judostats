@@ -173,6 +173,7 @@ export default function TechniquesPage() {
   const [selectedEventType, setSelectedEventType] = useState<string>('');
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [selectedHeightRange, setSelectedHeightRange] = useState<string>('');
+  const [selectedTechniqueCategory, setSelectedTechniqueCategory] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
 
   const { data: competitions } = useQuery({
@@ -188,14 +189,14 @@ export default function TechniquesPage() {
   if (selectedEventType) filterParams.append('eventType', selectedEventType);
   if (selectedYear) filterParams.append('year', selectedYear.toString());
   if (selectedHeightRange) filterParams.append('heightRange', selectedHeightRange);
+  if (selectedTechniqueCategory) filterParams.append('techniqueCategory', selectedTechniqueCategory);
   
   const { data: response, isLoading } = useQuery({
-    queryKey: ['techniqueStats', selectedCompetition, selectedGender, selectedWeightClass, selectedEventType, selectedYear, selectedHeightRange],
+    queryKey: ['techniqueStats', selectedCompetition, selectedGender, selectedWeightClass, selectedEventType, selectedYear, selectedHeightRange, selectedTechniqueCategory],
     queryFn: async () => {
       const { data } = await axios.get(`/api/technique-stats?${filterParams.toString()}`);
       return data;
     },
-    refetchInterval: 5000,
   });
 
   const techniques = response?.stats || [];
@@ -320,6 +321,17 @@ export default function TechniquesPage() {
                 {range.replace('<', '< ').replace('>=', '≥ ')} cm
               </option>
             ))}
+          </select>
+          <select
+            value={selectedTechniqueCategory}
+            onChange={(e) => setSelectedTechniqueCategory(e.target.value)}
+            className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
+          >
+            <option value="">All waza</option>
+            <option value="nage-waza">Nage-waza</option>
+            <option value="osaekomi-waza">Osaekomi-waza</option>
+            <option value="shime-waza">Shime-waza</option>
+            <option value="kansetsu-waza">Kansetsu-waza</option>
           </select>
         </div>
       </div>

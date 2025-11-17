@@ -69,6 +69,7 @@ export default function Dashboard() {
   const [selectedEventType, setSelectedEventType] = useState<string>('');
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [selectedHeightRange, setSelectedHeightRange] = useState<string>('');
+  const [selectedTechniqueCategory, setSelectedTechniqueCategory] = useState<string>('');
 
   const { data: competitions } = useQuery({
     queryKey: ['competitions'],
@@ -83,18 +84,18 @@ export default function Dashboard() {
   if (selectedEventType) filterParams.append('eventType', selectedEventType);
   if (selectedYear) filterParams.append('year', selectedYear.toString());
   if (selectedHeightRange) filterParams.append('heightRange', selectedHeightRange);
+  if (selectedTechniqueCategory) filterParams.append('techniqueCategory', selectedTechniqueCategory);
 
   const { data: response, isLoading } = useQuery({
-    queryKey: ['stats', selectedCompetition, selectedGender, selectedWeightClass, selectedEventType, selectedYear, selectedHeightRange],
+    queryKey: ['stats', selectedCompetition, selectedGender, selectedWeightClass, selectedEventType, selectedYear, selectedHeightRange, selectedTechniqueCategory],
     queryFn: async () => {
       const { data } = await axios.get(`/api/stats?${filterParams.toString()}`);
       return data;
     },
-    refetchInterval: 5000,
   });
 
   const stats = response?.stats;
-  const availableFilters = response?.availableFilters || { genders: [], weightClasses: [], eventTypes: [], years: [], heightRanges: [] };
+  const availableFilters = response?.availableFilters || { genders: [], weightClasses: [], eventTypes: [], years: [], heightRanges: [], techniqueCategories: [] };
 
   if (isLoading) {
     return (
@@ -191,13 +192,25 @@ export default function Dashboard() {
               </option>
             ))}
           </select>
+          <select
+            value={selectedTechniqueCategory}
+            onChange={(e) => setSelectedTechniqueCategory(e.target.value)}
+            className="px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors"
+          >
+            <option value="">All waza</option>
+            <option value="nage-waza">Nage-waza</option>
+            <option value="osaekomi-waza">Osaekomi-waza</option>
+            <option value="shime-waza">Shime-waza</option>
+            <option value="kansetsu-waza">Kansetsu-waza</option>
+          </select>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
         <StatCard title="Total Competitions" value={stats.totalCompetitions} icon="🏆" />
         <StatCard title="Total Matches" value={stats.totalMatches} icon="🥋" />
         <StatCard title="Total Techniques" value={stats.totalTechniques} icon="🎯" />
+        <StatCard title="Total Judoka" value={stats.totalJudoka || 0} icon="👤" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
